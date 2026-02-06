@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { LucideLogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
-
 import type { LogoutButtonProps } from "@/types";
 
 const LogoutButton = ({ className }: LogoutButtonProps) => {
