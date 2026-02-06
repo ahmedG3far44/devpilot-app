@@ -1,0 +1,24 @@
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { ThemeProvider } from "@/components/theme-provider";
+
+import App from "./App.tsx";
+import AuthProvider from "./context/auth/AuthProvider.tsx";
+import DeployProvider from "./context/deploy/DeployProvider.tsx";
+import ProjectsProvider from "./context/projects/ProjectsProvider.tsx";
+
+import "./index.css";
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <ThemeProvider>
+      <AuthProvider>
+        <ProjectsProvider>
+          <DeployProvider>
+            <App />
+          </DeployProvider>
+        </ProjectsProvider>
+      </AuthProvider>
+    </ThemeProvider>
+  </StrictMode>
+);
