@@ -1,4 +1,4 @@
-import type { RepoCardProps, RepositoryCardData } from "@/types";
+import type { RepoCardProps } from "@/types";
 import { Link, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,20 +25,15 @@ import {
   Copy,
 } from "lucide-react";
 import { useState } from "react";
-import { useProject } from "@/context/projects/ProjectsContext";
-import type { ProjectData } from "@/types";
+
+
 
 
 
 export function RepoCard({ repo }: RepoCardProps) {
   const navigate = useNavigate();
-  const { projects } = useProject();
-
   const [copied, setCopied] = useState<boolean>(false);
-  const [isDeployed] = useState<ProjectData | undefined>(projects.find((project) => project.name.toLocaleLowerCase().trim() === repo.name?.toLocaleLowerCase().trim()));
-
-
-
+  
   const formatSize = (sizeInKB: number): string => {
     if (sizeInKB < 1024) return `${sizeInKB} KB`;
     if (sizeInKB < 1024 * 1024) return `${(sizeInKB / 1024).toFixed(2)} MB`;
@@ -138,22 +133,21 @@ export function RepoCard({ repo }: RepoCardProps) {
           </Button>
         </div>
 
-        <>
-          {
-            isDeployed ? (
-              <Button onClick={() => navigate(`/deployments/${isDeployed._id}`)} variant={"outline"} className="w-full py-2 px-4 rounedd-md border border-muted cursor-pointer hover:opacity-65 duration-300 flex items-center gap-2 justify-center"><HardDrive size={25} /> Manage Deployment</Button>
-            ) : (
-              <Button
-                variant={"outline"}
-                onClick={() =>
-                  navigate(`/deploy/${repo.name?.toLocaleLowerCase().trim()}`)
-                }
-                className="w-full py-2 px-4 rounedd-md border border-muted cursor-pointer hover:opacity-65 duration-300 flex items-center gap-2 justify-center"
-              >
-                <span className="flex items-center gap-2"><HardDriveUpload size={25} /> Deploy Repo</span>        </Button>
-            )
+
+
+        <Button
+          variant={"outline"}
+          onClick={() =>
+            navigate(`/deploy/${repo.name?.toLocaleLowerCase().trim()}`)
           }
-        </>
+          className="w-full py-2 px-4 rounedd-md border border-muted cursor-pointer hover:opacity-65 duration-300 flex items-center gap-2 justify-center"
+        >
+          <span className="flex items-center gap-2"><HardDriveUpload size={25} /> Deploy Repo</span>        
+          
+          </Button>
+
+
+
       </CardContent>
     </Card>
   );

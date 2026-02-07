@@ -37,7 +37,7 @@ router.delete('/:project_id', authMiddleware, deleteProject);
 router.post('/:project_id/stop', authMiddleware, stopProject);
 
 // start project
-router.post('/:project_id/start', startProject);
+router.post('/:project_id/start', authMiddleware, startProject);
 
 
 export default router;

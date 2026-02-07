@@ -13,6 +13,8 @@ import {
   EyeOff,
   Loader2,
   LucideGitBranch,
+  FileText,
+  List,
 } from "lucide-react";
 
 import DeploymentLogs from "./DeploymentLogs";
@@ -105,15 +107,16 @@ export const PROJECT_TYPES: ProjectTypeConfig[] = [
 
 const BASE_URL = import.meta.env.VITE_BASE_URL as string;
 
-const DeploymentProjectForm: React.FC = () => {
+const DeploymentProjectForm = () => {
 
-  // const navigate = useNavigate();
   const { repos } = useAuth();
   const { repoName } = useParams();
-
   const { handleDeploy, isDeploying, logs, error } = useDeploy();
 
   const [projects, setProjectsList] = useState<ProjectData[]>([]);
+  const [envInputMode, setEnvInputMode] = useState<"individual" | "bulk">("individual");
+  const [bulkEnvText, setBulkEnvText] = useState("");
+  const [bulkEnvError, setBulkEnvError] = useState("");
 
   const getProjectsList = async () => {
     try {
@@ -136,6 +139,14 @@ const DeploymentProjectForm: React.FC = () => {
     getProjectsList();
   }, []);
 
+
+  // if (!repoName) return <Navigate to={"/"} />;
+
+
+  const deployedBefore = projects.find(
+    (project) =>
+      project.name.toLowerCase().trim() === repoName?.toLocaleLowerCase().trim()
+  );
   const numberOfServerProjects = projects.filter(
     (project) =>
       project.type === "express" ||
@@ -148,15 +159,12 @@ const DeploymentProjectForm: React.FC = () => {
       repo.name.toLowerCase().trim() === repoName?.toLocaleLowerCase().trim()
   );
 
-  if (!deployedProject) return <Navigate to={"/"} />;
-
-  if (error) return <ErrorMessage message={error} />;
 
   const [formData, setFormData] = useState<ProjectFormData>({
-    name: deployedProject.name,
-    description: deployedProject.description as string,
-    clone_url: deployedProject.clone_url,
-    branch: deployedProject.default_branch as string,
+    name: deployedProject?.name as string,
+    description: deployedProject?.description as string,
+    clone_url: deployedProject?.clone_url as string,
+    branch: deployedProject?.default_branch as string,
     port: 3000,
     typescript: false,
     type: "react",
@@ -269,6 +277,104 @@ const DeploymentProjectForm: React.FC = () => {
     return /^[A-Z_][A-Z0-9_]*$/i.test(key);
   };
 
+  const parseBulkEnv = (text: string): IEnvironment[] => {
+    const lines = text.split('\n');
+    const parsedEnvs: IEnvironment[] = [];
+    const errors: string[] = [];
+
+    lines.forEach((line, index) => {
+      const trimmedLine = line.trim();
+
+      // Skip empty lines and comments
+      if (!trimmedLine || trimmedLine.startsWith('#')) {
+        return;
+      }
+
+      // Find the first = sign
+      const equalIndex = trimmedLine.indexOf('=');
+
+      if (equalIndex === -1) {
+        errors.push(`Line ${index + 1}: Missing '=' separator`);
+        return;
+      }
+
+      let key = trimmedLine.substring(0, equalIndex).trim();
+      let value = trimmedLine.substring(equalIndex + 1).trim();
+
+      // Remove export keyword if present
+      if (key.startsWith('export ')) {
+        key = key.substring(7).trim();
+      }
+
+      // Handle quoted values
+      if ((value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.substring(1, value.length - 1);
+      }
+
+      if (!key) {
+        errors.push(`Line ${index + 1}: Empty key`);
+        return;
+      }
+
+      if (!validateEnvKey(key)) {
+        errors.push(`Line ${index + 1}: Invalid key format "${key}"`);
+        return;
+      }
+
+      parsedEnvs.push({
+        id: `${Date.now()}-${index}`,
+        key,
+        value,
+        isVisible: false,
+      });
+    });
+
+    if (errors.length > 0) {
+      setBulkEnvError(errors.join('\n'));
+      return [];
+    }
+
+    setBulkEnvError("");
+    return parsedEnvs;
+  };
+
+  const handleBulkEnvChange = (text: string) => {
+    setBulkEnvText(text);
+    setBulkEnvError("");
+  };
+
+  const applyBulkEnv = () => {
+    const parsedEnvs = parseBulkEnv(bulkEnvText);
+
+    if (parsedEnvs.length > 0) {
+      setFormData((prev) => ({
+        ...prev,
+        environments: parsedEnvs,
+      }));
+      // Optionally switch back to individual view to show the parsed variables
+      // setEnvInputMode("individual");
+    }
+  };
+
+  const switchToIndividualMode = () => {
+    // Convert current environments to bulk text for preservation
+    const bulkText = formData.environments
+      .map(env => `${env.key}=${env.value}`)
+      .join('\n');
+    setBulkEnvText(bulkText);
+    setEnvInputMode("individual");
+  };
+
+  const switchToBulkMode = () => {
+    // Convert current environments to bulk text
+    const bulkText = formData.environments
+      .map(env => `${env.key}=${env.value}`)
+      .join('\n');
+    setBulkEnvText(bulkText);
+    setEnvInputMode("bulk");
+  };
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -307,17 +413,31 @@ const DeploymentProjectForm: React.FC = () => {
   };
 
   const handleSubmit = async () => {
+    // If in bulk mode, parse and apply before submitting
+    if (envInputMode === "bulk" && bulkEnvText.trim()) {
+      const parsedEnvs = parseBulkEnv(bulkEnvText);
+      if (parsedEnvs.length === 0 && bulkEnvError) {
+        return; // Don't submit if there are parsing errors
+      }
+      if (parsedEnvs.length > 0) {
+        setFormData((prev) => ({
+          ...prev,
+          environments: parsedEnvs,
+        }));
+      }
+    }
+
     if (!validateForm()) return;
     try {
       const port = 4000 + numberOfServerProjects.length + 1;
       const deployPayload: DeployBodyType = {
-        name: deployedProject?.name.toLowerCase().trim(),
-        repo: deployedProject?.clone_url.toLowerCase().trim(),
-        type: formData.type.toLowerCase().trim(),
-        branch: formData.branch.toLowerCase().trim(),
+        name: deployedProject?.name.toLowerCase().trim() as string,
+        repo: deployedProject?.clone_url.toLowerCase().trim() as string,
+        type: formData.type.toLowerCase().trim() as string,
+        branch: formData.branch.toLowerCase().trim() as string,
         typescript: formData.typescript,
-        run_script: formData.run_script.toLowerCase().trim(),
-        build_script: formData.build_script.toLowerCase().trim(),
+        run_script: formData.run_script.toLowerCase().trim() as string,
+        build_script: formData.build_script.toLowerCase().trim() as string,
         port:
           formData?.type === "express" ||
             formData?.type === "nest" ||
@@ -344,12 +464,19 @@ const DeploymentProjectForm: React.FC = () => {
     }
   };
 
+
+  if (!repoName) return <Navigate to={"/"} />
+
+  if (deployedBefore) return <Navigate to={`/deployments/${deployedBefore._id}`} />;
+
+
+
   if (isDeploying)
     return (
       <DeploymentLogs
         logs={logs}
         isDeploying={isDeploying}
-        projectName={deployedProject.name}
+        projectName={deployedProject?.name as string}
       />
     );
 
@@ -395,7 +522,7 @@ const DeploymentProjectForm: React.FC = () => {
                   Project Name
                 </label>
                 <p className="text-sm sm:text-base  font-medium break-words">
-                  {deployedProject.name}
+                  {deployedProject?.name as string}
                 </p>
               </div>
               <div>
@@ -403,7 +530,7 @@ const DeploymentProjectForm: React.FC = () => {
                   Default Branch
                 </label>
                 <span className="text-xs sm:text-sm  font-medium break-words flex items-center gap-2">
-                  <LucideGitBranch size={12} />  {deployedProject.default_branch}
+                  <LucideGitBranch size={12} />  {deployedProject?.default_branch as string}
                 </span>
               </div>
               <div>
@@ -411,16 +538,16 @@ const DeploymentProjectForm: React.FC = () => {
                   Clone URL
                 </label>
                 <p className="text-xs sm:text-sm  font-mono break-all">
-                  {deployedProject.clone_url}
+                  {deployedProject?.clone_url as string}
                 </p>
               </div>
-              {deployedProject.description && (
+              {deployedProject?.description && (
                 <div>
                   <label className="block text-xs sm:text-sm font-medium  mb-1">
                     Description
                   </label>
                   <p className="text-sm sm:text-base  break-words">
-                    {deployedProject.description}
+                    {deployedProject?.description as string}
                   </p>
                 </div>
               )}
@@ -587,99 +714,178 @@ const DeploymentProjectForm: React.FC = () => {
                 <label className="block text-sm sm:text-base font-semibold ">
                   Environment Variables
                 </label>
-                <Button
-                  onClick={addEnvVar}
-                  disabled={!canAddEnvVar()}
-                  variant={"default"}
-                  className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition ${canAddEnvVar()
-                    ? " border hover:opacity-65 duration-300 cursor-pointer"
-                    : "  border  cursor-not-allowed"
-                    }`}
-                  title={
-                    !canAddEnvVar()
-                      ? "Fill in the current environment variable before adding a new one"
-                      : ""
-                  }
-                >
-                  <Plus size={16} />
-                  Add Variable
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => envInputMode === "individual" ? switchToBulkMode() : switchToIndividualMode()}
+                    variant={"outline"}
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition border hover:opacity-65 duration-300 cursor-pointer"
+                  >
+                    {envInputMode === "individual" ? (
+                      <>
+                        <FileText size={16} />
+                        Bulk Edit
+                      </>
+                    ) : (
+                      <>
+                        <List size={16} />
+                        Individual Edit
+                      </>
+                    )}
+                  </Button>
+                  {envInputMode === "individual" && (
+                    <Button
+                      onClick={addEnvVar}
+                      disabled={!canAddEnvVar()}
+                      variant={"default"}
+                      className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition ${canAddEnvVar()
+                        ? " border hover:opacity-65 duration-300 cursor-pointer"
+                        : "  border  cursor-not-allowed"
+                        }`}
+                      title={
+                        !canAddEnvVar()
+                          ? "Fill in the current environment variable before adding a new one"
+                          : ""
+                      }
+                    >
+                      <Plus size={16} />
+                      Add Variable
+                    </Button>
+                  )}
+                </div>
               </div>
 
-              {formData.environments.length === 0 ? (
-                <div className="text-center py-8 sm:py-12 border-2 border-dashed rounded-lg ">
-                  <p className=" text-sm sm:text-base font-medium">
-                    No environment variables added yet
-                  </p>
-                  <p className=" text-xs sm:text-sm mt-1">
-                    Click "Add Variable" to get started
-                  </p>
+              {envInputMode === "bulk" ? (
+                <div className="space-y-3">
+                  <div>
+                    <textarea
+                      value={bulkEnvText}
+                      onChange={(e) => handleBulkEnvChange(e.target.value)}
+                      className="w-full px-3 sm:px-4 py-2.5 rounded-lg border border-muted focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition text-sm sm:text-base font-mono min-h-[200px]"
+                      placeholder={`Paste your environment variables here:
+
+API_KEY=your_api_key_here
+DATABASE_URL=postgresql://user:pass@localhost:5432/db
+NODE_ENV=production
+PORT=3000
+
+# Comments are ignored
+export NEXT_PUBLIC_API_URL="https://api.example.com"`}
+                    />
+                    <p className="mt-1.5 text-xs sm:text-sm text-muted-foreground">
+                      Paste your .env file content. Each line should be in KEY=value format. Comments (#) and empty lines are ignored.
+                    </p>
+                  </div>
+
+                  {bulkEnvError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-xs sm:text-sm text-red-600 whitespace-pre-line flex items-start gap-2">
+                        <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
+                        <span>{bulkEnvError}</span>
+                      </p>
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={applyBulkEnv}
+                    variant={"default"}
+                    className="w-full sm:w-auto px-4 py-2 text-sm font-medium rounded-lg transition border hover:opacity-65 duration-300 cursor-pointer"
+                  >
+                    Parse & Apply Variables
+                  </Button>
+
+                  {formData.environments.length > 0 && (
+                    <div className="mt-4 p-3 bg-card border border-muted rounded-lg">
+                      <p className="text-xs sm:text-sm font-medium mb-2">
+                        Currently loaded: {formData.environments.length} variable(s)
+                      </p>
+                      <div className="text-xs sm:text-sm text-muted-foreground space-y-1">
+                        {formData.environments.map((env) => (
+                          <div key={env.id} className="font-mono">
+                            {env.key}=***
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {formData.environments.map((env, index) => (
-                    <div key={env.id}>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <input
-                          type="text"
-                          value={env.key}
-                          onChange={(e) =>
-                            updateEnvVar(env.id, "key", e.target.value)
-                          }
-                          className="flex-1 px-3 sm:px-4 py-2.5 rounded-lg border  focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition text-sm sm:text-base font-mono border-muted"
-                          placeholder="KEY"
-                        />
-                        <div className="flex-1 relative">
-                          <input
-                            type={env.isVisible ? "text" : "password"}
-                            value={env.value}
-                            onChange={(e) =>
-                              updateEnvVar(env.id, "value", e.target.value)
-                            }
-                            className="w-full px-3 sm:px-4 py-2.5 pr-10 rounded-lg border  border-muted focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition text-sm sm:text-base font-mono"
-                            placeholder="value"
-                          />
-                          <Button
-                            onClick={() => toggleEnvVisibility(env.id)}
-                            variant={"outline"}
-                            className="border border-muted absolute right-2 top-1/2 -translate-y-1/2 p-1.5  hover:opacity-65 transition duration-300 "
-                            aria-label={
-                              env.isVisible ? "Hide value" : "Show value"
-                            }
-                          >
-                            {env.isVisible ? (
-                              <EyeOff size={16} />
-                            ) : (
-                              <Eye size={16} />
-                            )}
-                          </Button>
-                        </div>
-                        <Button
-                          onClick={() => removeEnvVar(env.id)}
-                          variant={"destructive"}
-                          className="text-sm"
-                          title="Remove variable"
-                          aria-label="Remove environment variable"
-                        >
-                          <Trash2 size={18} className="mx-auto sm:mx-0" />
-                        </Button>
-                      </div>
-                      {errors[`envKey_${index}`] && (
-                        <p className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1">
-                          <AlertCircle size={12} className="flex-shrink-0" />
-                          {errors[`envKey_${index}`]}
-                        </p>
-                      )}
+                <>
+                  {formData.environments.length === 0 ? (
+                    <div className="text-center py-8 sm:py-12 border-2 border-dashed rounded-lg ">
+                      <p className=" text-sm sm:text-base font-medium">
+                        No environment variables added yet
+                      </p>
+                      <p className=" text-xs sm:text-sm mt-1">
+                        Click "Add Variable" or "Bulk Edit" to get started
+                      </p>
                     </div>
-                  ))}
-                </div>
-              )}
+                  ) : (
+                    <div className="space-y-3">
+                      {formData.environments.map((env, index) => (
+                        <div key={env.id}>
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <input
+                              type="text"
+                              value={env.key}
+                              onChange={(e) =>
+                                updateEnvVar(env.id, "key", e.target.value)
+                              }
+                              className="flex-1 px-3 sm:px-4 py-2.5 rounded-lg border  focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition text-sm sm:text-base font-mono border-muted"
+                              placeholder="KEY"
+                            />
+                            <div className="flex-1 relative">
+                              <input
+                                type={env.isVisible ? "text" : "password"}
+                                value={env.value}
+                                onChange={(e) =>
+                                  updateEnvVar(env.id, "value", e.target.value)
+                                }
+                                className="w-full px-3 sm:px-4 py-2.5 pr-10 rounded-lg border  border-muted focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition text-sm sm:text-base font-mono"
+                                placeholder="value"
+                              />
+                              <Button
+                                onClick={() => toggleEnvVisibility(env.id)}
+                                variant={"outline"}
+                                className="border border-muted absolute right-2 top-1/2 -translate-y-1/2 p-1.5  hover:opacity-65 transition duration-300 "
+                                aria-label={
+                                  env.isVisible ? "Hide value" : "Show value"
+                                }
+                              >
+                                {env.isVisible ? (
+                                  <EyeOff size={16} />
+                                ) : (
+                                  <Eye size={16} />
+                                )}
+                              </Button>
+                            </div>
+                            <Button
+                              onClick={() => removeEnvVar(env.id)}
+                              variant={"destructive"}
+                              className="text-sm"
+                              title="Remove variable"
+                              aria-label="Remove environment variable"
+                            >
+                              <Trash2 size={18} className="mx-auto sm:mx-0" />
+                            </Button>
+                          </div>
+                          {errors[`envKey_${index}`] && (
+                            <p className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1">
+                              <AlertCircle size={12} className="flex-shrink-0" />
+                              {errors[`envKey_${index}`]}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-              {formData.environments.length > 0 && !canAddEnvVar() && (
-                <p className="mt-2 text-xs sm:text-sm text-amber-600 flex items-center gap-1 bg-card my-2 p-3 rounded-lg border border-amber-200">
-                  <AlertCircle size={14} className="flex-shrink-0" />
-                  Fill in both key and value to add another environment variable
-                </p>
+                  {formData.environments.length > 0 && !canAddEnvVar() && (
+                    <p className="mt-2 text-xs sm:text-sm text-amber-600 flex items-center gap-1 bg-card my-2 p-3 rounded-lg border border-amber-200">
+                      <AlertCircle size={14} className="flex-shrink-0" />
+                      Fill in both key and value to add another environment variable
+                    </p>
+                  )}
+                </>
               )}
             </div>
 
@@ -707,3 +913,4 @@ const DeploymentProjectForm: React.FC = () => {
 };
 
 export default DeploymentProjectForm;
+

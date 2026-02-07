@@ -22,8 +22,7 @@ import {
     X,
     Terminal,
     ChevronDown,
-    ChevronUp,
-    FolderSync,
+    ChevronUp
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -61,7 +60,7 @@ const BASE_URL = import.meta.env.VITE_BASE_URL as string;
 
 export default function DeploymentDetails() {
     const { projectId } = useParams();
-    const { deleteProject, getProjectDetailsById } = useProject();
+    const { deleteProject, getProjectDetailsById, deleting } = useProject();
     const [projectData, setProjectData] = useState<ProjectDetailsData | null>(null)
     const [deployments, setDeployments] = useState<Deployment[]>([])
     const [logs] = useState<LogsEntry[]>([
@@ -95,7 +94,7 @@ export default function DeploymentDetails() {
     const [showDeleteDialog, setShowDeleteDialog] = useState(false)
     const [showStopDialog, setShowStopDialog] = useState(false)
     const [showEnvDialog, setShowEnvDialog] = useState(false)
-    const [mustRedeploy, setMustRedeploy] = useState(false)
+    const [mustRedeploy, setMustRedeploy] = useState(true)
 
     const [newEnvKey, setNewEnvKey] = useState("")
 
@@ -178,6 +177,16 @@ export default function DeploymentDetails() {
 
     const uptimeString = `${days > 0 ? `${days}d ` : ''}${hours > 0 ? `${hours}h ` : ''}${minutes > 0 ? `${minutes}m` : ''}`
 
+    if (deleting) {
+        return (
+            <div className="bg-background flex flex-col gap-4 items-center justify-start mt-80 text-foreground w-full h-full relative">
+                <div className="left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 flex absolute flex-col items-center gap-2">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                    <p>Deleting project...</p>
+                </div>
+            </div>
+        )
+    }
     return (
         <div className="min-h-screen bg-background text-foreground">
             <DeploymentsAction
@@ -197,7 +206,7 @@ export default function DeploymentDetails() {
                     <div className="lg:col-span-2 space-y-6">
                         <DeploymentsInsights
                             projectData={projectData}
-                            uptime={uptimeString}
+                            uptime={uptimeString <= "1" ? "Now Started" : uptimeString}
                             deploymentDuration={calculateDeploymentDuration()}
                             totalDeployments={deployments.length}
                         />
@@ -214,7 +223,7 @@ export default function DeploymentDetails() {
                             </CardContent>
                         </Card>
 
-                        {!canShowLogs() && (
+                        {canShowLogs() && (
                             <RuntimeLogs logs={logs as LogsEntry[]} />
                         )}
                     </div>
@@ -830,6 +839,10 @@ function DeploymentsAction({
 }) {
 
     const [loading, setLoading] = useState(false)
+    const [staring, setStaring] = useState(false)
+
+    const [stopping, setStopping] = useState(false)
+
     const handleRedeploy = async (projectId: string) => {
         setLoading(true)
         try {
@@ -853,20 +866,52 @@ function DeploymentsAction({
         }
     }
 
-    const handleStop = () => {
-        setShowStopDialog(true)
+    const handleStop = async () => {
+        setStopping(true)
+        try {
+            const response = await fetch(`${BASE_URL}/deployment/${projectData._id}/stop`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                credentials: "include",
+            })
+            const data = await response.json()
+            console.log(data)
+            setShowStopDialog(false)
+        } catch (error) {
+            console.log(error)
+        } finally {
+            setStopping(false)
+        }
     }
 
-    const handleStart = () => {
-        console.log("Starting project...")
+    const handleStart = async () => {
+        try {
+            setStaring(true)
+            const response = await fetch(`${BASE_URL}/deployment/${projectData._id}/start`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                credentials: "include"
+            })
+            const data = await response.json()
+            console.log(data)
+
+        } catch (error) {
+            console.log(error)
+        } finally {
+            setStaring(false)
+        }
     }
 
     const handleDelete = () => {
         setShowDeleteDialog(true)
     }
-    const syncEnv = () => {
+    // const syncEnv = () => {
 
-    }
+    // }
 
     return (
         <header className="border-b border-border ">
@@ -885,10 +930,15 @@ function DeploymentsAction({
                         </div>
                     </div>
 
-                    {projectData.status === "active" && (
+                    {projectData.status === "active" ? (
                         <Badge className="bg-green-500 text-white border-green-500">
                             <Activity className="mr-1 h-3 w-3" />
                             Live
+                        </Badge>
+                    ) : (
+                        <Badge className="bg-yellow-500 text-white border-yellow-500">
+                            <Activity className="mr-1 h-3 w-3" />
+                            IDLE
                         </Badge>
                     )}
                 </div>
@@ -917,7 +967,7 @@ function DeploymentsAction({
 
                 <div className="mt-4 flex gap-2">
                     {(projectData.status === "active" || projectData.status === "failed") && (
-                        <Button disabled={loading || !mustRedeploy} onClick={() => handleRedeploy(projectData._id)} variant={mustRedeploy ? "default" : "outline"} size="sm">
+                        <Button disabled={!mustRedeploy} onClick={() => handleRedeploy(projectData._id)} variant={mustRedeploy ? "default" : "outline"} size="sm">
                             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCw className="mr-2 h-4 w-4" />}
                             Redeploy
                         </Button>
@@ -927,14 +977,20 @@ function DeploymentsAction({
                             <>
                                 {projectData.status === "active" && (
                                     <Button onClick={handleStop} variant="outline" size="sm">
-                                        <Square className="mr-2 h-4 w-4" />
-                                        Stop
+                                        {stopping ? <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> stopping...</> : <>
+                                            <Square className="mr-2 h-4 w-4" />
+                                            Stop
+                                        </>}
                                     </Button>
                                 )}
                                 {projectData.status === "stopped" && (
                                     <Button onClick={handleStart} variant="outline" size="sm">
-                                        <Play className="mr-2 h-4 w-4" />
-                                        Start
+                                        {staring ? <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> starting...</> : <>
+                                            <Play className="mr-2 h-4 w-4" />
+                                            Start
+                                        </>}
                                     </Button>
                                 )}
                             </>
@@ -942,11 +998,7 @@ function DeploymentsAction({
                     }
                     <Button onClick={() => setShowEnvDialog(true)} variant="outline" size="sm">
                         <Settings className="mr-2 h-4 w-4" />
-                        Manage Env
-                    </Button>
-                    <Button onClick={syncEnv} variant="outline" size="sm">
-                        <FolderSync className="mr-2 h-4 w-4" />
-                        Sync Env
+                        Add Env
                     </Button>
                     <Button onClick={handleDelete} variant="outline" size="sm" className="text-destructive bg-transparent">
                         <Trash2 className="mr-2 h-4 w-4" />

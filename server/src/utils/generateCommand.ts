@@ -54,7 +54,7 @@ export function buildDeployCommand(project: ProjectFormData): string {
     const BRANCH = branch ?. toLowerCase().trim();
     const APP_TYPE = type ?. toLowerCase().trim();
     const SUB_DIR = main_dir ?. toLowerCase().trim() || ".";
-    const ENV_VARS = envVars ?. toLowerCase().trim();
+    const ENV_VARS = envVars ?. trim();
 
     if (type === "react" || type === "static") {
         return `./client.sh "${PROJECT_NAME}" "${REPO_URL}" "${BRANCH}" "${APP_TYPE}" "${SUB_DIR}" "${ENV_VARS}"`;

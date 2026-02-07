@@ -15,7 +15,7 @@ MY_DOMAIN="stacktest.space"
 HOST_ZONE_ID="Z0731459IXAN4Z3D4MLO"
 EMAIL="ahmedjaafarbadri@gmail.com"
 
-FULL_DOMAIN="${PROJECT_NAME}.${MY_DOMAIN}"
+FULL_DOMAIN="api.${PROJECT_NAME}.${MY_DOMAIN}"
 PM2_NAME="api.${PROJECT_NAME}"
 CURRENT_STEP="Initialization"
 

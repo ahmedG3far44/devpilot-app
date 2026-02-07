@@ -18,6 +18,88 @@ const SSH_PORT = process.env.EC2_SSH_PORT as string;
 const USERNAME = process.env.EC2_USER as string;
 const DOMAIN = process.env.DOMAIN as string;
 
+
+const SCRIPTS_PATH = '/home/devpilot/scripts';
+
+
+const buildCleanupCommand = (projectName : string, projectType : string) : string => {
+    return `cd ${SCRIPTS_PATH} && sudo ./clean.sh ${projectName} ${projectType}`;
+};
+
+
+const executeSSHCommand = (command : string) : Promise < {
+    code: number;
+    signal: string;
+    output: string;
+    error: string
+} > => {
+    return new Promise((resolve, reject) => {
+        const conn = new Client();
+        let output = '';
+        let errorOutput = '';
+
+        const cleanup = () => {
+            conn.removeAllListeners();
+            conn.end();
+        };
+
+        conn.on('ready', () => {
+            conn.exec(command, (err, stream) => {
+                if (err) {
+                    cleanup();
+                    return reject(new Error(`SSH execution error: ${
+                        err.message
+                    }`));
+                }
+
+                stream.on('data', (chunk : Buffer) => {
+                    const data = chunk.toString();
+                    output += data;
+                    console.log('[SSH Output]:', data);
+                });
+
+                stream.stderr.on('data', (chunk : Buffer) => {
+                    const data = chunk.toString();
+                    errorOutput += data;
+                    console.error('[SSH Error]:', data);
+                });
+
+                stream.on('close', (code : number, signal : string) => {
+                    cleanup();
+                    resolve({code, signal, output, error: errorOutput});
+                });
+
+                stream.on('error', (streamErr : Error) => {
+                    cleanup();
+                    reject(new Error(`Stream error: ${
+                        streamErr.message
+                    }`));
+                });
+            });
+        });
+
+        conn.on('error', (connErr : Error) => {
+            cleanup();
+            reject(new Error(`SSH connection error: ${
+                connErr.message
+            }`));
+        });
+
+        conn.on('timeout', () => {
+            cleanup();
+            reject(new Error('SSH connection timeout'));
+        });
+
+        conn.connect({
+            host: HOST,
+            username: USERNAME,
+            password: PASSWORD,
+            port: Number(SSH_PORT),
+            tryKeyboard: false, readyTimeout: 30000
+        });
+    });
+};
+
 export const deployProject = async (req : AuthRequest, res : Response) => {
     const user = req.user;
     const token = req.cookies.access_token as string;
@@ -303,63 +385,97 @@ export const reDeployProject = async (req : AuthRequest, res : Response) : Promi
     }
 };
 
-
 export const deleteProject = async (req : AuthRequest, res : Response) : Promise < void > => {
-    try {
-
+    try { // 1. Authentication check
         const userId = req.user ?. id;
-
         if (! userId) {
-            res.status(401).json({error: 'Unauthorized: User not authenticated'});
+            res.status(401).json({success: false, error: 'Unauthorized: User not authenticated'});
             return;
         }
 
+        // 2. Validate project_id
         const {project_id} = req.params;
+        if (!project_id) {
+            res.status(400).json({success: false, error: 'Project ID is required'});
+            return;
+        }
 
+        // 3. Find project
         const project = await Project.findById(project_id);
-
-
         if (! project) {
-            res.status(404).json({error: 'Project not found'});
+            res.status(404).json({success: false, error: 'Project not found'});
             return;
         }
 
-        // run the bash script
-        // const script = `#!/bin/bash
-        // cd ${project.path}
-        // git pull
-        // npm install
-        // npm run build
-        // pm2 restart ${project.name}`;
+        // 4. Build cleanup command
+        const command = buildCleanupCommand(project.name, project.type);
+        console.log('[Cleanup Command]:', command);
 
-        const deployment = await Deployment.deleteMany({project_name: project.name});
+        // 5. Execute SSH cleanup command
+        const result = await executeSSHCommand(command);
 
-
-        if (! deployment) {
-            res.status(404).json({error: 'Deployment not found'});
+        // 6. Check if command succeeded
+        if (result.code !== 0) {
+            console.error(`[Cleanup Failed] Code: ${
+                result.code
+            }, Signal: ${
+                result.signal
+            }`);
+            res.status(500).json({
+                success: false,
+                error: 'Failed to delete project',
+                details: {
+                    exitCode: result.code,
+                    signal: result.signal,
+                    output: result.error || result.output
+                }
+            });
             return;
         }
 
+        // 7. Delete deployments
+        const deletedDeployments = await Deployment.deleteMany({project_name: project.name});
+        console.log(`[Deployments Deleted] Count: ${
+            deletedDeployments.deletedCount
+        }`);
+
+        // 8. Delete project from database
         await Project.findByIdAndDelete(project_id);
+        console.log(`[Project Deleted] ID: ${project_id}, Name: ${
+            project.name
+        }`);
 
+        // 9. Send success response
         res.status(200).json({
-                success: true, message: `Project ${
+            success: true,
+            message: `Project ${
                 project.name
-            } deleted successfully`
+            } deleted successfully`,
+            data: {
+                projectId: project_id,
+                projectName: project.name,
+                deploymentsDeleted: deletedDeployments.deletedCount
+            }
         });
 
     } catch (error) {
+        console.error('[Delete Project Error]:', error);
+
         res.status(500).json({
+            success: false,
             error: 'Failed to delete project',
-            details: error instanceof Error ? error.message : 'Unknown error'
+            message: error instanceof Error ? error.message : 'Unknown error occurred'
         });
     }
 };
 
-
 export const startProject = async (req : AuthRequest, res : Response) : Promise < void > => {
     try {
         const userId = req.user ?. id;
+
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.setHeader("Transfer-Encoding", "chunked");
+        res.flushHeaders();
 
         if (! userId) {
             res.status(401).json({error: 'Unauthorized: User not authenticated'});
@@ -380,15 +496,57 @@ export const startProject = async (req : AuthRequest, res : Response) : Promise 
             res.status(400).json({success: false, message: 'Project type not supported'});
             return;
         }
-        // run the bash script
-        // const script = `#!/bin/bash
-        // cd ${project.path}
-        // git pull
-        // npm install
-        // npm run build
-        // pm2 restart ${project.name}`;
 
-        res.status(200).json({success: true, message: 'Project started successfully'});
+
+        const startCommand = `cd /var/www/${
+            project.name.toLowerCase()
+        }
+pm2 start ${
+            project ?. package_manager ?. toLowerCase() || "npm"
+        } --name "api.${
+            project.name.toLowerCase()
+        }" -- "${
+            project.run_script
+        }"`
+
+
+        console.log(startCommand)
+
+        const conn = new Client()
+
+        conn.on("ready", () => {
+            conn.exec(startCommand, (err, stream) => {
+                if (err) {
+                    console.error("Error executing command:", err);
+                    return;
+                }
+                stream.on("data", (chunk : Buffer) => {
+                    console.log(chunk.toString());
+                }).stderr.on("data", (chunk : Buffer) => {
+                    console.error(chunk.toString());
+                });
+                stream.on("close", async (code : number, signal : string) => {
+                    if (code === 0) {
+                        console.log("Command completed");
+                        project.status = "active"
+                        await project.save()
+                        res.status(200).json({success: true, message: 'Project started successfully'});
+                    } else {
+                        res.status(500).json({
+                            error: 'Failed to start project',
+                            details: 'Command failed with code ' + code + ' and signal ' + signal
+                        });
+                    }
+                });
+            });
+        }).connect({host: HOST, port: Number(SSH_PORT), username: USERNAME, password: PASSWORD});
+
+        conn.on("error", (err) => {
+            console.error("Error executing command:", err);
+            res.status(500).json({error: 'Failed to start project', details: err.message});
+        });
+
+        conn.end()
     } catch (error) {
         res.status(500).json({
             error: 'Failed to start project',
@@ -420,15 +578,49 @@ export const stopProject = async (req : AuthRequest, res : Response) : Promise <
             res.status(400).json({success: false, message: 'Project type not supported'});
             return;
         }
-        // run the bash script
-        // const script = `#!/bin/bash
-        // cd ${project.path}
-        // git pull
-        // npm install
-        // npm run build
-        // pm2 restart ${project.name}`;
 
-        res.status(200).json({success: true, message: 'Project started successfully'});
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.setHeader("Transfer-Encoding", "chunked");
+        res.flushHeaders();
+
+
+        const stopCommand = `cd /var/www/${
+            project.name.toLowerCase()
+        } && pm2 stop ${
+            `api.${
+                project.name.toLowerCase()
+            }`
+        }`;
+
+        const conn = new Client()
+
+        conn.on("ready", () => {
+            conn.exec(stopCommand, (err, stream) => {
+                if (err) {
+                    console.error("Error executing command:", err);
+                    return;
+                }
+                stream.on("data", (chunk : Buffer) => {
+                    console.log(chunk.toString());
+                }).stderr.on("data", (chunk : Buffer) => {
+                    console.error(chunk.toString());
+                });
+                stream.on("close", async (code : number, signal : string) => {
+                    if (code === 0) {
+                        console.log("Command completed");
+                        project.status = "stopped"
+                        await project.save()
+                        res.status(200).json({success: true, message: 'Project stopped successfully'});
+                    } else {
+                        res.status(500).json({
+                            error: 'Failed to stop project',
+                            details: 'Command failed with code ' + code + ' and signal ' + signal
+                        });
+                    }
+                });
+            });
+        }).connect({host: HOST, port: Number(SSH_PORT), username: USERNAME, password: PASSWORD});
+
     } catch (error) {
         res.status(500).json({
             error: 'Failed to start project',
