@@ -1,9 +1,9 @@
 import {Client} from 'ssh2';
 import {Response} from 'express';
-import {AuthRequest} from '../types';
 import {deploySchema} from '../types/index';
-import {getLastCommit, incrementVersion} from '../utils/getUser';
+import {AuthRequest, SyncEnvSchema} from '../types';
 import {buildDeployCommand} from '../utils/generateCommand';
+import {getLastCommit, incrementVersion} from '../utils/getUser';
 
 import dotenv from 'dotenv'
 import Project from '../models/Project';
@@ -55,13 +55,11 @@ const executeSSHCommand = (command : string) : Promise < {
                 stream.on('data', (chunk : Buffer) => {
                     const data = chunk.toString();
                     output += data;
-                    console.log('[SSH Output]:', data);
                 });
 
                 stream.stderr.on('data', (chunk : Buffer) => {
                     const data = chunk.toString();
                     errorOutput += data;
-                    console.error('[SSH Error]:', data);
                 });
 
                 stream.on('close', (code : number, signal : string) => {
@@ -95,7 +93,8 @@ const executeSSHCommand = (command : string) : Promise < {
             username: USERNAME,
             password: PASSWORD,
             port: Number(SSH_PORT),
-            tryKeyboard: false, readyTimeout: 30000
+            tryKeyboard: false,
+            readyTimeout: 30000
         });
     });
 };
@@ -124,7 +123,6 @@ export const deployProject = async (req : AuthRequest, res : Response) => {
         build_script: data.build_script,
         environments: data ?. environments
     });
-    console.log("command deploy: ", command)
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
     res.setHeader("Transfer-Encoding", "chunked");
     res.flushHeaders();
@@ -189,27 +187,23 @@ export const deployProject = async (req : AuthRequest, res : Response) => {
                         package_manager
                     };
 
-                    console.log("Saving project:", project);
-
                     let savedProject = await Project.findOne({name: data.name});
 
                     if (! savedProject) {
                         savedProject = await Project.create(project);
-                        console.log("Created new project successfully");
+
                     } else {
                         savedProject = await Project.findOneAndUpdate({
                             name: data.name
                         }, project, {new: true});
-                        console.log("Updated existing project");
+
                     }
 
                     const lastCommit = await getLastCommit(token, data.name, user ?. username as string);
 
-                    console.log(lastCommit)
 
                     const version = incrementVersion(savedProject ?. version || "1.0.0", "patch", true);
 
-                    console.log(version)
 
                     await Deployment.create({
                         project_name: data.name,
@@ -299,7 +293,6 @@ export const getProjectDetails = async (req : AuthRequest, res : Response) : Pro
             return;
         }
 
-        console.log(project)
 
         const deploymentsList = await Deployment.find({project_name: project.name});
 
@@ -409,7 +402,6 @@ export const deleteProject = async (req : AuthRequest, res : Response) : Promise
 
         // 4. Build cleanup command
         const command = buildCleanupCommand(project.name, project.type);
-        console.log('[Cleanup Command]:', command);
 
         // 5. Execute SSH cleanup command
         const result = await executeSSHCommand(command);
@@ -435,20 +427,13 @@ export const deleteProject = async (req : AuthRequest, res : Response) : Promise
 
         // 7. Delete deployments
         const deletedDeployments = await Deployment.deleteMany({project_name: project.name});
-        console.log(`[Deployments Deleted] Count: ${
-            deletedDeployments.deletedCount
-        }`);
 
         // 8. Delete project from database
         await Project.findByIdAndDelete(project_id);
-        console.log(`[Project Deleted] ID: ${project_id}, Name: ${
-            project.name
-        }`);
 
         // 9. Send success response
         res.status(200).json({
-            success: true,
-            message: `Project ${
+                success: true, message: `Project ${
                 project.name
             } deleted successfully`,
             data: {
@@ -510,8 +495,6 @@ pm2 start ${
         }"`
 
 
-        console.log(startCommand)
-
         const conn = new Client()
 
         conn.on("ready", () => {
@@ -522,12 +505,12 @@ pm2 start ${
                 }
                 stream.on("data", (chunk : Buffer) => {
                     console.log(chunk.toString());
+                    res.write(chunk.toString());
                 }).stderr.on("data", (chunk : Buffer) => {
                     console.error(chunk.toString());
                 });
                 stream.on("close", async (code : number, signal : string) => {
                     if (code === 0) {
-                        console.log("Command completed");
                         project.status = "active"
                         await project.save()
                         res.status(200).json({success: true, message: 'Project started successfully'});
@@ -586,8 +569,7 @@ export const stopProject = async (req : AuthRequest, res : Response) : Promise <
 
         const stopCommand = `cd /var/www/${
             project.name.toLowerCase()
-        } && pm2 stop ${
-            `api.${
+        } && pm2 stop ${`api.${
                 project.name.toLowerCase()
             }`
         }`;
@@ -607,7 +589,6 @@ export const stopProject = async (req : AuthRequest, res : Response) : Promise <
                 });
                 stream.on("close", async (code : number, signal : string) => {
                     if (code === 0) {
-                        console.log("Command completed");
                         project.status = "stopped"
                         await project.save()
                         res.status(200).json({success: true, message: 'Project stopped successfully'});
@@ -628,3 +609,78 @@ export const stopProject = async (req : AuthRequest, res : Response) : Promise <
         });
     }
 };
+
+
+export const syncProjectEnv = async (req : AuthRequest, res : Response) => {
+    try {
+        const payload = req.body;
+        const projectId = req.params.project_id;
+
+        const parsed = SyncEnvSchema.safeParse(payload);
+
+        if (! parsed.success) {
+            return res.status(400).json({error: 'Invalid environments data'});
+        }
+
+        const environments = parsed.data.environments;
+
+        if (! projectId) {
+            return res.status(400).json({error: 'Project ID is required'});
+        }
+
+        const project = await Project.findById(projectId);
+
+        if (! project) {
+            return res.status(404).json({error: 'Project not found'});
+        }
+
+        const envString = environments.map(env => `${
+            env.key
+        }=${
+            env.value
+        }`).join("\n");
+
+        const command = `bash ${SCRIPTS_PATH}/sync_env.sh "${
+            envString
+        }" ${
+            project.name.toLowerCase()
+        } "${
+            project.main_dir ? project.main_dir : "./"
+        }"`;
+
+        const conn = new Client();
+
+        conn.on("ready", () => {
+            conn.exec(command, (err, stream) => {
+                if (err) {
+                    console.error("Error executing command:", err);
+                    return;
+                }
+                stream.on("data", (chunk : Buffer) => {
+                    console.log(chunk.toString());
+                }).stderr.on("data", (chunk : Buffer) => {
+                    console.error(chunk.toString());
+                });
+                stream.on("close", async (code : number, signal : string) => {
+                    if (code === 0) {
+                        project.environments = environments;
+                        await project.save();
+                        res.status(200).json({success: true, message: 'Environments synced successfully'});
+                    } else {
+                        res.status(500).json({
+                            error: 'Failed to sync environments',
+                            details: 'Command failed with code ' + code + ' and signal ' + signal
+                        });
+                    }
+                });
+            });
+        }).connect({host: HOST, port: Number(SSH_PORT), username: USERNAME, password: PASSWORD});
+
+
+    } catch (error) {
+        res.status(500).json({
+            error: 'Failed to sync environments',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+}

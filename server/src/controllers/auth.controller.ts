@@ -35,12 +35,7 @@ export const githubCallback = async (req : Request, res : Response) => {
 
         const tokenData = await tokenResponse.json();
 
-        console.log("token data:");
-        console.log(tokenData);
-
         const access_token = tokenData.access_token;
-
-        console.log(access_token);
 
 
         if (!access_token) {
@@ -54,12 +49,8 @@ export const githubCallback = async (req : Request, res : Response) => {
             }
         });
         const githubUser = await userResponse.json();
-        console.log("github user data:");
-        console.log(githubUser);
 
         const user = await User.findOne({name: githubUser.name})
-        console.log("user data:");
-        console.log(user);
 
         const {
             id,
@@ -123,8 +114,6 @@ export const githubCallback = async (req : Request, res : Response) => {
 export const getUserSessionData = async (req : Request, res : Response) => {
     try {
         const token = req.cookies.access_token;
-        console.log("token: ")
-        console.log(token)
         if (! token) {
             return res.status(401).json({authenticated: false});
         }

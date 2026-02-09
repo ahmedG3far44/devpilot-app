@@ -17,6 +17,16 @@ EMAIL="ahmedjaafarbadri@gmail.com"
 
 FULL_DOMAIN="api.${PROJECT_NAME}.${MY_DOMAIN}"
 PM2_NAME="api.${PROJECT_NAME}"
+
+
+# Load NVM if it exists
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+# Force the script to use the version you want
+nvm use 20 > /dev/null || nvm use default > /dev/null
+
+
 CURRENT_STEP="Initialization"
 
 output_json() {
@@ -71,7 +81,16 @@ $PKG install > /dev/null 2>&1
 CURRENT_STEP="Build Process"
 if [[ "$APP_TYPE" == "nest" || "$APP_TYPE" == "next" || -f "tsconfig.json" ]]; then
     echo -e "🏗️  [5/11] Building $APP_TYPE application..."
-    $PKG run build > /dev/null 2>&1
+    
+    # 1. Increase memory limit for the build (Prevents OOM errors)
+    export NODE_OPTIONS="--max-old-space-size=2048"
+    
+    # 2. Run build and capture output to a log file instead of /dev/null
+    if ! $PKG run build > build_log.txt 2>&1; then
+        echo -e "❌ Build failed. Check build_log.txt for details."
+        cat build_log.txt # Display the error so it shows in your CI/CD output
+        exit 1
+    fi
 fi
 
 CURRENT_STEP="PM2 Deployment"

@@ -22,7 +22,8 @@ import {
     X,
     Terminal,
     ChevronDown,
-    ChevronUp
+    ChevronUp,
+    CalendarSyncIcon
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -95,18 +96,30 @@ export default function DeploymentDetails() {
     const [showStopDialog, setShowStopDialog] = useState(false)
     const [showEnvDialog, setShowEnvDialog] = useState(false)
     const [mustRedeploy, setMustRedeploy] = useState(true)
+    const [envVariables, setEnvVariables] = useState<EnvVariable[]>([])
 
     const [newEnvKey, setNewEnvKey] = useState("")
 
+
+    async function fetchProjectDetails() {
+        try {
+            const data = await getProjectDetailsById(projectId!)
+            if (data) {
+                setProjectData(data.project)
+                setDeployments(data.deployments || [])
+            }
+        } catch (error) {
+            console.error("Failed to fetch project details:", error)
+        }
+    }
+
+
     const confirmDelete = async () => {
-        console.log("Confirming Delete project...")
         try {
             const data = await deleteProject(projectId!)
-            console.log(data)
             setShowDeleteDialog(false)
             navigate("/projects")
         } catch (error) {
-            console.log(error)
             setShowDeleteDialog(true)
         } finally {
             setShowDeleteDialog(false)
@@ -115,6 +128,7 @@ export default function DeploymentDetails() {
 
     const confirmStop = () => {
         console.log("Confirming Stop project...")
+        fetchProjectDetails();
     }
 
     const canShowLogs = () => {
@@ -150,20 +164,12 @@ export default function DeploymentDetails() {
         return Math.floor((updated.getTime() - created.getTime()) / 1000) // seconds
     }
 
+
     useEffect(() => {
-        async function fetchProjectDetails() {
-            try {
-                const data = await getProjectDetailsById(projectId!)
-                if (data) {
-                    setProjectData(data.project)
-                    setDeployments(data.deployments || [])
-                }
-            } catch (error) {
-                console.error("Failed to fetch project details:", error)
-            }
-        }
         fetchProjectDetails()
     }, [projectId])
+
+
 
     if (!projectData) {
         return (
@@ -190,6 +196,7 @@ export default function DeploymentDetails() {
     return (
         <div className="min-h-screen bg-background text-foreground">
             <DeploymentsAction
+                envVariables={projectData.environments}
                 projectData={projectData}
                 setShowDeleteDialog={setShowDeleteDialog}
                 setShowStopDialog={setShowStopDialog}
@@ -199,14 +206,15 @@ export default function DeploymentDetails() {
                 setDeployments={setDeployments}
                 mustRedeploy={mustRedeploy}
                 setMustRedeploy={setMustRedeploy}
+                fetchProjectDetails={fetchProjectDetails}
             />
 
             <main className="container mx-auto py-8">
                 <div className="grid gap-6 lg:grid-cols-3">
-                    <div className="lg:col-span-2 space-y-6">
+                    <div className="lg:col-span-2 space-y-4">
                         <DeploymentsInsights
                             projectData={projectData}
-                            uptime={uptimeString <= "1" ? "Now Started" : uptimeString}
+                            uptime={uptimeString <= "1" ? "N/A" : uptimeString}
                             deploymentDuration={calculateDeploymentDuration()}
                             totalDeployments={deployments.length}
                         />
@@ -231,6 +239,8 @@ export default function DeploymentDetails() {
                     <div className="space-y-6">
                         <ProjectConfiguration projectData={projectData} />
                         <EnvironmentVariables
+                            envVariables={envVariables}
+                            setEnvVariables={setEnvVariables}
                             setMustRedeploy={setMustRedeploy}
                             projectData={projectData}
                             showEnvDialog={showEnvDialog}
@@ -407,8 +417,10 @@ function EnvironmentVariables({
     showEnvDialog,
     setShowEnvDialog,
     newEnvKey,
+    envVariables,
     setNewEnvKey,
-    setMustRedeploy
+    setMustRedeploy,
+    setEnvVariables
 }: {
     projectData: ProjectDetailsData
     showEnvDialog: boolean
@@ -416,8 +428,10 @@ function EnvironmentVariables({
     newEnvKey: string
     setNewEnvKey: (key: string) => void
     setMustRedeploy: (value: boolean) => void
+    envVariables: EnvVariable[]
+    setEnvVariables: Dispatch<SetStateAction<EnvVariable[]>>
 }) {
-    const [envVariables, setEnvVariables] = useState<EnvVariable[]>(projectData.environments || [])
+
     const [editingEnvId, setEditingEnvId] = useState<string | null>(null)
     const [maskedValues, setMaskedValues] = useState<Record<string, boolean>>({})
     const [tempEnvValues, setTempEnvValues] = useState<Record<string, string>>({})
@@ -820,14 +834,17 @@ function DeploymentHistory({
 
 function DeploymentsAction({
     projectData,
+    envVariables,
     setShowDeleteDialog,
     setShowStopDialog,
     setShowEnvDialog,
     setDeployments,
     mustRedeploy,
-    setMustRedeploy
+    setMustRedeploy,
+    fetchProjectDetails
 }: {
     projectData: ProjectDetailsData
+    envVariables: EnvVariable[]
     setShowDeleteDialog: (show: boolean) => void
     setShowStopDialog: (show: boolean) => void
     setShowEnvDialog: (show: boolean) => void
@@ -836,6 +853,7 @@ function DeploymentsAction({
     setNewEnvKey: (key: string) => void
     mustRedeploy: boolean
     setMustRedeploy: (mustRedeploy: boolean) => void
+    fetchProjectDetails: () => Promise<void>
 }) {
 
     const [loading, setLoading] = useState(false)
@@ -854,7 +872,6 @@ function DeploymentsAction({
                 credentials: "include",
             })
             const data = await response.json()
-            console.log(data)
             if (data.success) {
                 setDeployments((prevDeployments: Deployment[]) => [...prevDeployments, data.deployment])
                 setMustRedeploy(false)
@@ -878,6 +895,7 @@ function DeploymentsAction({
             })
             const data = await response.json()
             console.log(data)
+            await fetchProjectDetails()
             setShowStopDialog(false)
         } catch (error) {
             console.log(error)
@@ -896,9 +914,12 @@ function DeploymentsAction({
                 },
                 credentials: "include"
             })
+            if (!response.ok) {
+                throw new Error("Failed to start project")
+            }
             const data = await response.json()
             console.log(data)
-
+            await fetchProjectDetails()
         } catch (error) {
             console.log(error)
         } finally {
@@ -909,9 +930,26 @@ function DeploymentsAction({
     const handleDelete = () => {
         setShowDeleteDialog(true)
     }
-    // const syncEnv = () => {
+    const syncEnv = async (environments: EnvVariable[]) => {
+        try {
+            const response = await fetch(`${BASE_URL}/deployment/${projectData._id}/sync-env`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                credentials: "include",
+                body: JSON.stringify({
+                    environments
+                })
+            })
+            const data = await response.json()
+            console.log(data)
+            await fetchProjectDetails()
 
-    // }
+        } catch (error) {
+            console.log(error)
+        }
+    }
 
     return (
         <header className="border-b border-border ">
@@ -999,6 +1037,10 @@ function DeploymentsAction({
                     <Button onClick={() => setShowEnvDialog(true)} variant="outline" size="sm">
                         <Settings className="mr-2 h-4 w-4" />
                         Add Env
+                    </Button>
+                    <Button disabled={JSON.stringify(projectData.environments) === JSON.stringify(envVariables)} onClick={() => syncEnv(envVariables)} variant="outline" size="sm">
+                        <CalendarSyncIcon className="mr-2 h-4 w-4" />
+                        Sync Env
                     </Button>
                     <Button onClick={handleDelete} variant="outline" size="sm" className="text-destructive bg-transparent">
                         <Trash2 className="mr-2 h-4 w-4" />

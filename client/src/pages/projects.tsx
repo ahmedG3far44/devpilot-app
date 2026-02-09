@@ -40,6 +40,7 @@ import {
 import Spinner from "@/components/ui/spinner";
 import ErrorMessage from "@/components/ui/error";
 import type { ProjectFormData } from "@/types";
+import { ThemeImage } from "@/components/DeploymentProjectForm";
 
 
 
@@ -69,7 +70,6 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ onActionClick }) => {
         throw new Error(response.statusText);
       }
       const projects = await response.json();
-      console.log(projects.data);
       setProjects(projects.data);
     } catch (error) {
       setErrors(`${(error as Error).message}, ${(error as Error).name}`);
@@ -124,8 +124,6 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ onActionClick }) => {
           return "nestjs.png";
         case "express":
           return "expressjs.png";
-        case "next":
-          return "nextjs.png";
         case "static":
           return "static.png";
       }
@@ -133,7 +131,10 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ onActionClick }) => {
 
     return (
       <Badge variant="outline" className={"bg-accent/80  border border-accent/80"}>
-        <img width={15} height={15} src={`/images/${getTypeBadgeImage(type)}`} alt={type} /> {type.toUpperCase()}
+        {
+          type === "next" ? <ThemeImage size={15}/> : <img width={15} height={15} src={`/images/${getTypeBadgeImage(type)}`} alt={type} />
+        }
+        {type.toUpperCase()}
       </Badge>
     );
   };
@@ -146,10 +147,8 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ onActionClick }) => {
     if (onActionClick) {
       onActionClick(action, projectId);
     } else {
-      console.log(`Action: ${action} on project ${projectId}`);
       switch (action) {
         case "stop":
-          console.log("await api.stopProject(projectId);");
           await stopServer(projectId);
           break;
         case "settings":
@@ -168,7 +167,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ onActionClick }) => {
     <div className="container mx-auto my-20 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-2xl font-bold tracking-tight">
             Deployed Projects
           </h1>
           <p className="text-muted-foreground mt-1">

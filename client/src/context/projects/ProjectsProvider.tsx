@@ -49,7 +49,6 @@ const ProjectsProvider: FC<PropsWithChildren> = ({ children }) => {
         credentials: "include",
       });
       const results: { data: ProjectDetailsResponse } = await response.json();
-      console.log(results.data);
       return results.data;
     } catch (err) {
       console.log(
@@ -97,7 +96,7 @@ const ProjectsProvider: FC<PropsWithChildren> = ({ children }) => {
       });
       const results = await response.json();
 
-      console.log(results.data);
+      console.log(results.data);  
     } catch (err) {
       setError((err as Error).message);
       console.log(

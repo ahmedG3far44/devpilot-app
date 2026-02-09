@@ -81,8 +81,6 @@ export const getUser = async (token : string) => {
         });
         const githubUser = await userResponse.json();
 
-        console.log(githubUser)
-
         const user: User = {
             id: githubUser.id,
             name: githubUser.name,
@@ -115,8 +113,6 @@ export const getUserRepos = async (token : string) => {
             }
         });
         const reposList = await userResponse.json();
-
-        console.log(reposList)
 
         return reposList
     } catch (error) {
@@ -195,32 +191,15 @@ export const getLastCommit = async (token : string, repo : string, owner : strin
 }
 
 
-// export const createProject = async (projectData : Project) => {
-//     try {
-//         const project = await Project.create(projectData)
-//         return project
-//     } catch (error) {
-//         console.log((error as Error).message)
-//         return null;
-//     }
-// }
-
-
 export const getProjectDeployments = async (token : string, project_name : string) => {
     try {
-        if (!token) 
-            return
-
-
-        
-
+        if (!token) return
 
         const deploymentList = await Deployment.find({project_name})
-        console.log(deploymentList)
+
         return deploymentList
 
     } catch (error) {
-        console.log((error as Error).message)
         return null;
     }
 }

@@ -7,7 +7,8 @@ import {
     getProjectDetails,
     reDeployProject,
     startProject,
-    stopProject
+    stopProject,
+    syncProjectEnv
 } from '../controllers/deployment.controller';
 import {getProjectsList} from '../controllers/project.controller';
 
@@ -38,6 +39,9 @@ router.post('/:project_id/stop', authMiddleware, stopProject);
 
 // start project
 router.post('/:project_id/start', authMiddleware, startProject);
+
+
+router.post('/:project_id/sync', authMiddleware, syncProjectEnv);
 
 
 export default router;

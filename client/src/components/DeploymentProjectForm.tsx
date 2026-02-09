@@ -54,7 +54,7 @@ export const PACKAGE_MANAGERS: PackageManager[] = [
 
 export const PROJECT_TYPES: ProjectTypeConfig[] = [
   {
-    image: "/images/nextjs.png",
+    image: `/images/nextjs-dark.png`,
     value: "next",
     label: "Next JS",
     description: "React framework with SSR/SSG",
@@ -140,19 +140,16 @@ const DeploymentProjectForm = () => {
   }, []);
 
 
-  // if (!repoName) return <Navigate to={"/"} />;
-
-
   const deployedBefore = projects.find(
     (project) =>
       project.name.toLowerCase().trim() === repoName?.toLocaleLowerCase().trim()
   );
-  const numberOfServerProjects = projects.filter(
-    (project) =>
-      project.type === "express" ||
-      project.type === "next" ||
-      project.type === "nest"
-  );
+  // const numberOfServerProjects = projects.filter(
+  //   (project) =>
+  //     project.type === "express" ||
+  //     project.type === "next" ||
+  //     project.type === "nest"
+  // );
 
   const deployedProject = repos?.find(
     (repo) =>
@@ -160,12 +157,18 @@ const DeploymentProjectForm = () => {
   );
 
 
+  const getAvailablePortNumber = (deployedProjects: ProjectData[]) => {
+    const totalProjects = deployedProjects.length
+    return 4000 + totalProjects + 1;
+  }
+
+
   const [formData, setFormData] = useState<ProjectFormData>({
     name: deployedProject?.name as string,
     description: deployedProject?.description as string,
     clone_url: deployedProject?.clone_url as string,
     branch: deployedProject?.default_branch as string,
-    port: 3000,
+    port: getAvailablePortNumber(projects as ProjectData[]),
     typescript: false,
     type: "react",
     build_script: "npm run build",
@@ -413,11 +416,10 @@ const DeploymentProjectForm = () => {
   };
 
   const handleSubmit = async () => {
-    // If in bulk mode, parse and apply before submitting
     if (envInputMode === "bulk" && bulkEnvText.trim()) {
       const parsedEnvs = parseBulkEnv(bulkEnvText);
       if (parsedEnvs.length === 0 && bulkEnvError) {
-        return; // Don't submit if there are parsing errors
+        return;
       }
       if (parsedEnvs.length > 0) {
         setFormData((prev) => ({
@@ -428,8 +430,8 @@ const DeploymentProjectForm = () => {
     }
 
     if (!validateForm()) return;
+
     try {
-      const port = 4000 + numberOfServerProjects.length + 1;
       const deployPayload: DeployBodyType = {
         name: deployedProject?.name.toLowerCase().trim() as string,
         repo: deployedProject?.clone_url.toLowerCase().trim() as string,
@@ -438,16 +440,12 @@ const DeploymentProjectForm = () => {
         typescript: formData.typescript,
         run_script: formData.run_script.toLowerCase().trim() as string,
         build_script: formData.build_script.toLowerCase().trim() as string,
-        port:
-          formData?.type === "express" ||
-            formData?.type === "nest" ||
-            formData?.type === "next"
-            ? port
-            : 4000,
+        port: getAvailablePortNumber(projects as ProjectData[]),
         main_dir: formData.main_dir.toLowerCase().trim(),
         package_manager: formData.package_manager.toLowerCase().trim(),
         environments: formData.environments,
       };
+
 
       await handleDeploy(deployPayload).then(() => {
         setIsSubmitted(true);
@@ -455,9 +453,6 @@ const DeploymentProjectForm = () => {
         setIsSubmitted(false);
       });
 
-      // if (isSubmitted) {
-      //   return navigate(`/deployments/${deployedProject.id}`);
-      // }
     } catch (error) {
       console.error("Deployment error:", error);
       setErrors({ submit: "Failed to deploy project. Please try again." });
@@ -479,7 +474,6 @@ const DeploymentProjectForm = () => {
         projectName={deployedProject?.name as string}
       />
     );
-
 
   if (isSubmitted) return (<Navigate to={`/success`} />)
 
@@ -570,12 +564,12 @@ const DeploymentProjectForm = () => {
                       }`}
                   >
                     <div className="flex justify-center items-center gap-2 font-semibold text-sm sm:text-base ">
-                      <img
+                      {type.value === "next" ? <ThemeImage size={20} /> : <img
                         src={type.image}
                         width={20}
                         height={20}
                         alt={type.value}
-                      />
+                      />}
                       <span>{type.label}</span>
                     </div>
                     <div className="text-xs sm:text-sm  mt-1 leading-snug">
@@ -914,3 +908,26 @@ export NEXT_PUBLIC_API_URL="https://api.example.com"`}
 
 export default DeploymentProjectForm;
 
+export function ThemeImage({ size }: { size: number }) {
+  return (
+    <div className="relative">
+      {/* This image shows ONLY in Light mode */}
+      <img
+        src="/images/nextjs-dark.png"
+        alt="Dark version"
+        width={size}
+        height={size}
+        className="block dark:hidden"
+      />
+
+      {/* This image shows ONLY in Dark mode */}
+      <img
+        src="/images/nextjs-light.png"
+        alt="Light version"
+        width={size}
+        height={size}
+        className="hidden dark:block"
+      />
+    </div>
+  )
+}

@@ -72,9 +72,8 @@ const DeployProvider: FC<PropsWithChildren> = ({ children }) => {
             projectId = projectIdMatch[1];
           }
 
-          // Extract redirect URL
+      
           const redirectMatch = buffer.match(/REDIRECT_URL:([^\n]+)/);
-          console.log(redirectMatch);
           if (redirectMatch) {
             redirectUrl = redirectMatch[1];
           }

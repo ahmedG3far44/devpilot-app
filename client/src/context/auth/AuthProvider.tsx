@@ -26,14 +26,11 @@ const AuthProvider: FC<PropsWithChildren> = ({ children }) => {
 
       const data = await response.json();
 
-      console.log(data)
-
       if (data.authenticated) {
         localStorage.setItem("user", JSON.stringify(data.user));
         setUser(data.user);
       }
     } catch (error) {
-      console.log((error as Error).message);
       setError((error as Error).message);
     } finally {
       setLoading(false);
@@ -64,12 +61,13 @@ const AuthProvider: FC<PropsWithChildren> = ({ children }) => {
         method: "POST",
         credentials: "include",
       });
-      const data = await response.json();
-      console.log(data)
+      if (!response.ok) {
+        throw new Error("Failed to logout");
+      }
+      await response.json();
       setUser(null);
       localStorage.removeItem("user");
     } catch (error) {
-      console.log((error as Error).message);
       setError((error as Error).message);
     } finally {
       setLoading(false);

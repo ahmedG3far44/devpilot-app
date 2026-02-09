@@ -2,7 +2,7 @@ import mongoose, {Schema} from "mongoose";
 
 
 export interface IEnvironment {
-    id: string;
+    id?: string;
     key: string;
     value: string;
 }
@@ -37,7 +37,7 @@ export interface IProject extends Document {
 const EnvironmentSchema = new Schema<IEnvironment>({
     id: {
         type: String,
-        required: true
+        required: false
     },
     key: {
         type: String,

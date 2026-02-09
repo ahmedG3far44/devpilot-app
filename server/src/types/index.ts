@@ -11,10 +11,14 @@ export const ProjectTypeSchema = z.enum([
     "nest",
 ]);
 
-const DeployEnvironmentSchema = z.object({
+export const DeployEnvironmentSchema = z.object({
     id: z.string().optional(),
     key: z.string().min(1, 'Environment key is required').trim(),
     value: z.string().min(1, 'Environment value is required').trim()
+});
+
+export const SyncEnvSchema = z.object({
+    environments: z.array(DeployEnvironmentSchema),
 });
 
 export const ProjectStatus = z.enum(['active', 'failed', 'pending']);
