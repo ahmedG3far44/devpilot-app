@@ -3,12 +3,12 @@ import { Link, useLocation } from "react-router-dom";
 import { FolderOpenDot, GitBranch } from "lucide-react";
 
 import { useAuth } from "@/context/auth/AuthContext";
+import { UserSkeleton } from "./Navbar";
 
 import Logo from "./Logo";
 import LogoutButton from "./LogoutButton";
-import Spinner from "./ui/spinner";
 import LoginButton from "./LoginButton";
-import { UserSkeleton } from "./Navbar";
+
 
 export const Header = () => {
   const { user, isAuthenticated, loading } = useAuth();

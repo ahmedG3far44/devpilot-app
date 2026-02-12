@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/auth/AuthContext';
-import type { IUser, Page, UserRole } from '@/types';
+import type { IUser, Page } from '@/types';
 
 
 const Dashboard = () => {

@@ -12,7 +12,6 @@ import {
     Trash2,
     Play,
     Square,
-    RotateCw,
     Settings,
     Plus,
     Eye,
@@ -116,7 +115,7 @@ export default function DeploymentDetails() {
 
     const confirmDelete = async () => {
         try {
-            const data = await deleteProject(projectId!)
+            await deleteProject(projectId!)
             setShowDeleteDialog(false)
             navigate("/projects")
         } catch (error) {
