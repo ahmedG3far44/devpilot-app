@@ -4,6 +4,8 @@ import { ArrowRight, Play, CheckCircle2, Loader2 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { X } from 'lucide-react';
+
 
 
 
@@ -13,6 +15,7 @@ const Hero = () => {
     const [terminalLines, setTerminalLines] = useState<DeploymentStep[]>([]);
     const [currentStep, setCurrentStep] = useState(0);
     const [isVisible, setIsVisible] = useState(false);
+    const [videoPopupOpen, setVideoPopupOpen] = useState(false);
 
     const terminalRef = useRef<HTMLDivElement>(null);
 
@@ -105,6 +108,10 @@ const Hero = () => {
         }
     };
 
+    if (videoPopupOpen) {
+        return <VideoPopup isOpen={videoPopupOpen} onClose={() => setVideoPopupOpen(false)} videoUrl="https://cdn.dribbble.com/userupload/46586329/file/bb95c66489817d863688b9b8ca9f12d0.mp4" />
+    }
+
     return (
         <div className="relative pt-20 pb-16 px-6 overflow-hidden">
 
@@ -130,7 +137,7 @@ const Hero = () => {
                     <button onClick={handleGetStarted} className="cursor-pointer w-full sm:w-auto px-8 py-4 bg-violet-700 hover:bg-violet-800 text-white rounded-lg font-bold text-lg flex items-center justify-center gap-2 transition-all transform  shadow-xl shadow-violet-600/25">
                         Get Started Free <ArrowRight size={20} />
                     </button>
-                    <button onClick={() => { }} className=" cursor-pointer w-full sm:w-auto px-8 py-4 bg-slate-800/50 hover:bg-slate-900 text-white border border-slate-700 rounded-lg font-bold text-lg flex items-center justify-center gap-2 transition-all">
+                    <button onClick={() => setVideoPopupOpen(true)} className=" cursor-pointer w-full sm:w-auto px-8 py-4 bg-slate-800/50 hover:bg-slate-900 text-white border border-slate-700 rounded-lg font-bold text-lg flex items-center justify-center gap-2 transition-all">
                         <Play size={18} fill="currentColor" /> Watch Demo
                     </button>
                 </div>
@@ -221,3 +228,77 @@ const Hero = () => {
 };
 
 export default Hero;
+
+
+
+
+
+
+
+interface VideoPopupProps {
+    isOpen: boolean;
+    onClose: () => void;
+    videoUrl: string;
+    title?: string;
+}
+
+export const VideoPopup: React.FC<VideoPopupProps> = ({
+    isOpen,
+    onClose,
+    videoUrl,
+    title = "Demo Video"
+}) => {
+    const videoRef = useRef<HTMLIFrameElement>(null);
+
+    // Close on ESC key
+    useEffect(() => {
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                onClose();
+            }
+        };
+
+        if (isOpen) {
+            document.addEventListener('keydown', handleEscape);
+            document.body.style.overflow = 'hidden';
+        }
+
+        return () => {
+            document.removeEventListener('keydown', handleEscape);
+            document.body.style.overflow = 'unset';
+        };
+    }, [isOpen, onClose]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-center bg-black/80 backdrop-blur-sm justify-center p-4"
+            onClick={onClose}
+        >
+
+            {/* Modal */}
+            <div
+                className="relative w-full max-w-5xl rounded-lg border border-border  animate-in zoom-in-95 fade-in duration-300"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Close Button */}
+                <button
+                    onClick={onClose}
+                    className="absolute -top-12 right-0 z-50 p-1 rounded-full bg-accent/50 cursor-pointer hover:accent-accent/80 duration-300 text-white hover:text-gray-300 transition-colors"
+                    aria-label="Close video"
+                >
+                    <X size={20} />
+                </button>
+
+                {/* Video Container */}
+                <div className="bg-black flex justify-center items-center  overflow-hidden shadow-2xl">
+                    <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                        <video className="absolute inset-0 w-full h-full" src={videoUrl} controls autoPlay muted loop />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+

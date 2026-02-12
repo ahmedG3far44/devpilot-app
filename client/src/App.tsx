@@ -9,6 +9,7 @@ import ProjectsPage from "./pages/projects";
 import ProtectedRoute from "./components/ProtectedRoute";
 import DeploymentDetails from "./pages/deployments-details";
 import DeploymentProjectForm from "./components/DeploymentProjectForm";
+import Login from "./pages/login";
 
 
 const App = () => {
@@ -18,6 +19,7 @@ const App = () => {
 
         {/* Public Routes */}
         <Route index path="/" element={<HomePage />} />
+        <Route index path="/login" element={<Login />} />
 
         {/* Not Found Route */}
         <Route path="*" element={<NotFoundPage />} />
