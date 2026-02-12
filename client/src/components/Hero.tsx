@@ -245,10 +245,8 @@ interface VideoPopupProps {
 export const VideoPopup: React.FC<VideoPopupProps> = ({
     isOpen,
     onClose,
-    videoUrl,
-    title = "Demo Video"
-}) => {
-    const videoRef = useRef<HTMLIFrameElement>(null);
+    videoUrl}) => {
+   
 
     // Close on ESC key
     useEffect(() => {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { SearchX, Home, ArrowLeft } from 'lucide-react';
+import { Home } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const NotFoundPage: React.FC = () => {
@@ -11,9 +11,7 @@ const NotFoundPage: React.FC = () => {
     navigate('/');
   };
 
-  const handleGoBack = () => {
-    navigate(-1);
-  };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
