@@ -38,8 +38,8 @@ const Navbar = () => {
                                                             loading="lazy"
                                                         />
                                                     </div>
-                                                    <h4 className="hidden group-hover:text-white font-semibold lg:block text-sm text-zinc-400 transition-colors max-w-[120px] truncate">
-                                                        {user?.name}
+                                                    <h4 className="hidden group-hover:text-white font-semibold lg:block text-xs text-zinc-400 transition-colors max-w-[120px] truncate">
+                                                       @{user?.username}
                                                     </h4>
                                                 </Link>
                                             </div>

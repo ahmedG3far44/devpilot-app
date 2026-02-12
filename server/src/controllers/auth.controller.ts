@@ -6,15 +6,17 @@ import User from "../models/User";
 
 dotenv.config();
 
+const NODE_ENV = process.env.NODE_ENV as string;
 const CLIENT_URL = process.env.CLIENT_URL as string;
 const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID as string;
 const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET as string;
+const JWT_SECRET = process.env.JWT_SECRET as string;
 
 export const githubCallback = async (req : Request, res : Response) => {
     try {
         const code = req.query.code as string;
 
-        if (!code) {
+        if (! code) {
             return res.status(400).json({error: "Missing GitHub code"});
         }
 
@@ -25,11 +27,7 @@ export const githubCallback = async (req : Request, res : Response) => {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify(
-                {
-                    client_id: GITHUB_CLIENT_ID, 
-                    client_secret: GITHUB_CLIENT_SECRET, 
-                    code
-                }
+                {client_id: GITHUB_CLIENT_ID, client_secret: GITHUB_CLIENT_SECRET, code}
             )
         });
 
@@ -37,8 +35,7 @@ export const githubCallback = async (req : Request, res : Response) => {
 
         const access_token = tokenData.access_token;
 
-
-        if (!access_token) {
+        if (! access_token) {
             return res.status(400).json({error: "Failed to retrieve GitHub access token"});
         }
 
@@ -50,7 +47,7 @@ export const githubCallback = async (req : Request, res : Response) => {
         });
         const githubUser = await userResponse.json();
 
-        const user = await User.findOne({name: githubUser.name})
+        const user = await User.findOne({username: githubUser.login})
 
         const {
             id,
@@ -59,14 +56,15 @@ export const githubCallback = async (req : Request, res : Response) => {
             avatar_url,
             repos_url,
             location,
-            bio
+            bio,
+            email
         } = githubUser;
 
-        if (!user) {
+        if (! user) {
             await User.create({
                 githubId: id,
-                name,
                 username: login,
+                email:email || "",
                 avatar_url,
                 repos_url,
                 location,
@@ -75,7 +73,6 @@ export const githubCallback = async (req : Request, res : Response) => {
         }
 
 
-        // Create your own JWT to store in cookie
         const jwtToken = jwt.sign({
             id,
             name,
@@ -84,27 +81,23 @@ export const githubCallback = async (req : Request, res : Response) => {
             repos_url,
             location,
             bio
-        }, process.env.JWT_SECRET!, {expiresIn: "7d"});
+        }, JWT_SECRET, {expiresIn: "7d"});
 
-        // Send JWT as HttpOnly cookie
         res.cookie("session", jwtToken, {
             httpOnly: true,
-            secure: false, // process.env.NODE_ENV === "production"
+            secure: NODE_ENV === "production",
             sameSite: "lax",
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+            maxAge: 7 * 24 * 60 * 60 * 1000, 
         });
 
         res.cookie("access_token", access_token, {
             httpOnly: true,
-            secure: false, // process.env.NODE_ENV === "production"
+            secure: NODE_ENV === "production",
             sameSite: "lax",
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+            maxAge: 7 * 24 * 60 * 60 * 1000, 
         });
 
-        // You can redirect or send JSON response
         return res.redirect(`${CLIENT_URL}/user`);
-        // or:
-        // res.json({ message: "Login successful", user: githubUser });
     } catch (error) {
         console.error("GitHub auth error:", error);
         res.status(500).json({error: "Internal Server Error"});

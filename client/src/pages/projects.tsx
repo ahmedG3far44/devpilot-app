@@ -132,7 +132,7 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ onActionClick }) => {
     return (
       <Badge variant="outline" className={"bg-accent/80  border border-accent/80"}>
         {
-          type === "next" ? <ThemeImage size={15}/> : <img width={15} height={15} src={`/images/${getTypeBadgeImage(type)}`} alt={type} />
+          type === "next" ? <ThemeImage size={15} /> : <img width={15} height={15} src={`/images/${getTypeBadgeImage(type)}`} alt={type} />
         }
         {type.toUpperCase()}
       </Badge>
@@ -161,7 +161,34 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ onActionClick }) => {
   const activeCount = projects.filter((p) => p.status === "active").length;
   const issueCount = projects.filter((p) => p.status === "failed").length;
 
-  if (projects.length === 0) return <div className="p-10 flex items-center gap-2 justify-center h-1/2 text-foreground/50"> <Server className="h-4 w-4" /> No projects found ?? </div>
+  if (projects.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] px-4">
+        <div className="relative mb-6">
+          {/* Icon container with subtle background */}
+          <div className="absolute inset-0 bg-primary/5 blur-2xl rounded-full" />
+          <div className="relative bg-muted/50 p-6 rounded-2xl border border-border/50">
+            <Server className="h-12 w-12 text-muted-foreground/70" strokeWidth={1.5} />
+          </div>
+        </div>
+
+        <h3 className="text-xl font-semibold text-foreground mb-2">
+          No Projects Yet
+        </h3>
+
+        <p className="text-sm text-muted-foreground text-center max-w-sm mb-6">
+          Get started by creating your first project or connect your repositories
+        </p>
+
+        {/* Optional: Add action buttons */}
+        <div className="flex gap-3">
+          <Link to="/user" className="cursor-pointer hover:opacity-65 duration-300  px-4 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/80 transition-colors text-sm font-medium">
+            Import from GitHub
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto my-20 space-y-6">

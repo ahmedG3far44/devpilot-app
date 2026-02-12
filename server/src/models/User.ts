@@ -2,8 +2,8 @@ import mongoose, {Schema, Document} from "mongoose";
 
 export interface IUser extends Document {
     githubId: string;
-    name: string;
     username: string;
+    email: string;
     avatar_url: string;
     repos_url: string;
     location?: string;
@@ -22,14 +22,15 @@ const UserSchema = new Schema<IUser>({
         unique: true,
         trim: true
     },
-    name: {
-        type: String,
-        required: true,
-        trim: true
-    },
     username: {
         type: String,
         required: true,
+        unique: true,
+        trim: true
+    },
+    email: {  
+        type: String,
+        sparse: true, 
         unique: true,
         trim: true
     },
@@ -72,11 +73,7 @@ const UserSchema = new Schema<IUser>({
 }, {timestamps: false});
 
 
-UserSchema.pre('save', function (next) {
-    this.updatedAt = new Date();
-    next();
-});
-
 
 const User = mongoose.model<IUser>('User', UserSchema);
+
 export default User

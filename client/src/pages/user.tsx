@@ -154,7 +154,7 @@ const UserPage = () => {
       {/* Filters */}
       <div className="mb-6 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-         
+
           <div>
             <label className="block text-sm font-medium mb-2">Language</label>
             <select
@@ -241,20 +241,71 @@ const UserPage = () => {
             />
           ))
         ) : (
-          <div className="col-span-2 text-center py-8">
+          <div className="col-span-2 flex flex-col items-center justify-center py-16 px-4">
             {hasActiveFilters ? (
               <>
-                <p className="text-lg mb-2">No repositories found</p>
-                <p className="text-sm opacity-75">Try adjusting your filters</p>
+                {/* Filtered - No Results */}
+                <div className="relative mb-6">
+                  <div className="bg-muted/40 p-6 rounded-2xl border border-border/50">
+                    <svg
+                      className="h-12 w-12 text-muted-foreground/60"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={1.5}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM13.5 10.5h-6" />
+                    </svg>
+                  </div>
+                </div>
+
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  No repositories found
+                </h3>
+
+                <p className="text-sm text-muted-foreground mb-4 max-w-sm text-center">
+                  No repositories match your current filters. Try adjusting your search criteria.
+                </p>
+
+                <button
+                  onClick={clearFilters}
+                  className="px-4 py-2 border-border border bg-accent/20 cursor-pointer hover:bg-accent/50 text-sm font-medium text-primary hover:text-primary/80 rounded-lg transition-colors"
+                >
+                  Clear all filters
+                </button>
               </>
             ) : (
-              <p className="text-lg">No repositories available</p>
+              <>
+                {/* No Repositories at All */}
+                <div className="relative mb-6">
+                  <div className="absolute inset-0 bg-primary/5 blur-2xl rounded-full" />
+                  <div className="relative bg-muted/40 p-6 rounded-2xl border border-border/50">
+                    <svg
+                      className="h-12 w-12 text-muted-foreground/60"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={1.5}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776" />
+                    </svg>
+                  </div>
+                </div>
+
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  No repositories yet
+                </h3>
+
+                <p className="text-sm text-muted-foreground max-w-sm text-center">
+                  Connect your GitHub account to see your repositories
+                </p>
+              </>
             )}
           </div>
         )}
       </div>
 
-      {/* Pagination Controls */}
+     
       {totalPages > 1 && (
         <div className="mt-8 flex items-center justify-center gap-2">
           {/* Previous Button */}

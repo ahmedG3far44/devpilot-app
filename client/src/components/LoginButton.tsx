@@ -20,7 +20,7 @@ const LoginButton = ({
       className={`${className} text-sm hover:bg-accent/80 duration-300 rounded-md shadow-sm text-center`}
       onClick={() =>
         window.location.assign(
-          `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${redirectUri}`
+          `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&scope=user:email&redirect_uri=${redirectUri}`
         )
       }
     >

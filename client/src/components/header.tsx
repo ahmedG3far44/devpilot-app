@@ -74,7 +74,7 @@ export const Header = () => {
 
                     <User
                       picture={user?.avatar_url as string}
-                      name={user?.name as string}
+                      name={user?.username as string}
                     />
 
                     <div className="hidden md:flex items-center gap-2">
@@ -101,7 +101,7 @@ export const User = ({ picture, name }: { picture: string; name: string }) => {
       to="/user"
       className="flex items-center backdrop-blur-sm gap-2 px-2 py-1.5 rounded-md hover:bg-accent/20 transition-colors group"
     >
-      <div className="relative w-8 h-8 rounded-full overflow-hidden transition-all">
+      <div className="relative w-8 h-8 rounded-full flex row-reverse overflow-hidden transition-all">
         <img
           className="w-full h-full object-cover"
           src={picture}
@@ -109,8 +109,8 @@ export const User = ({ picture, name }: { picture: string; name: string }) => {
           loading="lazy"
         />
       </div>
-      <h4 className="hidden lg:block text-sm font-medium text-foreground transition-colors max-w-[120px] truncate">
-        {name}
+      <h4 className="hidden lg:block text-xs font-medium text-foreground transition-colors max-w-[120px] truncate">
+        @{name}
       </h4>
     </Link>
   );
