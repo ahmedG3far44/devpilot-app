@@ -1,132 +1,143 @@
-Here’s a clean, professional `README.md` template tailored for your **DevPilot** project — a SaaS platform that lets users deploy and monitor GitHub repositories easily. It’s written in a way that’s developer-friendly and ready for GitHub.
+<div align="start">
+  <table style="border:none;">
+    <tr style="border:none;">
+      <td style="border:none;">
+        <img src="https://github.com/user-attachments/assets/36cbb327-2ba9-44f5-9dbc-bfbf80f8ab81" width="60" height="60" />
+      </td>
+      <td style="border:none;">
+        <h1>DevPilot</h1>
+      </td>
+    </tr>
+  </table>
+</div>
 
----
 
-````markdown
-# 🚀 DevPilot
 
-**DevPilot** is a lightweight SaaS platform that connects with your GitHub account, lets you select repositories, configure environments, and deploy projects instantly to your own cloud infrastructure.  
-It also provides real-time monitoring — including logs, request stats, and traffic analytics — all from a single dashboard.
+**devPilot** is an open-source, self-hosted PaaS (Platform as a Service) that gives developers a Vercel-like deployment experience on their own infrastructure. Connect your GitHub, select a repository, and let devPilot handle the heavy lifting—from cloning and building to SSL termination and DNS records.
 
----
 
-## ✨ Features
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/37c7c2ed-27b8-4040-bf2e-0c7efd4e51bb" width="100%" />
 
-- 🔐 **GitHub OAuth Login** — Sign in securely using your GitHub account.
-- 📦 **Repository Selection** — Choose which GitHub repos to deploy.
-- ⚙️ **Environment Management** — Set up environment variables per project.
-- 🚀 **One-Click Deployment** — Deploy repos directly to your connected EC2 instance or server.
-- 📊 **Monitoring Dashboard** — View logs, traffic, and app performance in real time.
-- 🔄 **Continuous Integration Ready** — Deploy automatically on new commits.
+</p>
 
----
 
-## 🧱 Tech Stack
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/8c9ec0ce-e561-42b5-8c55-d6346a2c905f" width="100%" />
+</p>
 
-**Frontend**
-- React (Next.js or Vite)
-- TypeScript
-- Tailwind CSS / shadcn/ui for design system
+## 🚀 Why devPilot?
 
-**Backend**
-- Node.js (Express)
-- TypeScript
-- MongoDB / PostgreSQL
-- PM2 for process management
+* **🎯 One-Click Deploy**: Authenticate with GitHub, select a repo, and deploy. No manual SSH or configuration required.
+* **🧠 Intelligent Detection**: Automatic detection for **Next.js, React, Express, and NestJS** projects.
+* **🔧 Full Infrastructure Control**: Automated **NGINX** reverse proxy, **PM2** process management, and **SSL** via Let's Encrypt.
+* **🌐 Dynamic Networking**: Automatic DNS record management through **AWS Route 53** integration.
+* **🔌 Flexible Config**: Support for custom root directories (`./server`, `./frontend`), build scripts, and `.env` management.
+* **💻 Self-Hosted**: Run your own deployment engine on any VPS, avoiding the "SaaS tax."
 
-**Infrastructure**
-- AWS EC2 for app hosting  
-- Nginx for reverse proxy & SSL termination  
-- Docker for containerized deployment  
+## 📦 Tech Stack
 
----
+* **Frontend**: React, TypeScript, Tailwind CSS
+* **Backend**: Node.js, Express, TypeScript, MongoDB
+* **Automation**: SSH2, PM2, NGINX, Bash Script
+* **Cloud**: AWS Route 53 (Auto-DNS), Let's Encrypt (SSL)
+* **Integration**: GitHub OAuth 2.0
 
-## 🚀 Getting Started (Local Development)
 
-### 1. Clone the repository
+## 🚦 Getting Started
+### Pre-requisites before installation
+
+* A VPS running Ubuntu 22.04+ (or equivalent)
+* AWS Account (for Route 53 DNS automation)
+* GitHub Developer Application (for OAuth)
+* Node.js v20 or higher
+
+### Installation
+
+#### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/devpilot.git
+git clone https://github.com/ahmedg3far/devpilot.git
 cd devpilot
-````
 
-### 2. Install dependencies
+```
+
+#### 2. Install Dependencies
 
 ```bash
+# Install core dependencies
 npm install
-# or
-yarn install
+
+# Build the project
+npm run build
+
 ```
 
-### 3. Set up environment variables
+#### 3. Configure Environment
 
-Create a `.env` file in both `client` and `server` directories:
+Create a `.env` file in the root directory:
 
-```bash
-GITHUB_CLIENT_ID=your_github_app_id
-GITHUB_CLIENT_SECRET=your_github_app_secret
-MONGO_URI=your_mongodb_uri
-JWT_SECRET=your_secret_key
-EC2_SSH_KEY_PATH=/path/to/your/key.pem
+```env
+PORT=5000
+MONGO_URI=mongodb://localhost:27017/devpilot
+GITHUB_CLIENT_ID=your_id
+GITHUB_CLIENT_SECRET=your_secret
+AWS_ACCESS_KEY=your_aws_key
+AWS_SECRET_KEY=your_aws_secret
+
 ```
 
-### 4. Run the development servers
+## 📋 Key Features
 
-```bash
-# Run backend
-cd server
-npm run dev
+### Automated Workflow
 
-# Run frontend
-cd ../client
-npm run dev
-```
+* **Git Integration**: Watch repositories and trigger deployments on push.
+* **Dependency Management**: Automated `npm/yarn/pnpm` install and build processes.
+* **Process Persistence**: Uses PM2 to ensure your Node.js apps stay online after crashes or reboots.
 
-The app will be available at `http://localhost:3000`.
+### Networking & Security
 
----
+* **Reverse Proxy**: Automatically generates and reloads NGINX configurations for each project.
+* **SSL by Default**: Provisions Let's Encrypt certificates automatically for every linked domain.
+* **DNS Automation**: Syncs with AWS Route 53 to point your domains to your VPS IP instantly.
 
-## 🧩 Deployment with Bash Script
+### Deployment Control
 
-You can deploy any app directly using the included deployment script:
+* **Environment Isolation**: Securely manage `.env` variables via the devPilot dashboard.
+* **Directory Mapping**: Support for monorepos or nested folder structures (e.g., deploying from `./apps/web`).
 
-```bash
-./deploy_app.sh <github_repo_url> <directory_name>
-```
+## 🚀 Usage Guide
 
-This script will:
+### Deploying your first app
 
-1. Clone the repository
-2. Install dependencies (npm/yarn/pnpm)
-3. Start the app using PM2
+1. **Login**: Authenticate using your GitHub account.
+2. **Import**: Select the repository you want to deploy.
+3. **Configure**:
+* Select **Project Type** (e.g., Next.js).
+* Set **Root Directory** (e.g., `./`).
+* Input your **Domain Name**.
 
----
 
-## 🧠 Roadmap
+4. **Deploy**: Click "Deploy" and watch the real-time logs as devPilot builds your production environment.
 
-* [ ] Add multi-cloud support (Vercel, Render, DigitalOcean)
-* [ ] Add deployment logs streaming
-* [ ] Add role-based access and team management
-* [ ] Add usage billing system
+## 🤝 Contributing
 
----
+We welcome contributions! devPilot is built for developers, by developers.
 
-## 🛡 License
+* Report bugs by opening an [Issue](https://www.google.com/search?q=https://github.com/ahmedg3far/devpilot/issues).
+* Submit feature requests.
+* Improve the automated deployment scripts.
 
-This project is licensed under the **MIT License** – see the [LICENSE](./LICENSE) file for details.
+See our [Contributing Guide](https://www.google.com/search?q=./CONTRIBUTING.md) for local development setup.
 
----
+## 📄 Legal
 
-## 👨‍💻 Author
-
-**DevPilot**
-Built and maintained by [Ahmed](https://github.com/your-username)
-Contributions, issues, and feature requests are welcome!
+* **License**: MIT License
+* **Security**: [Security Policy](https://www.google.com/search?q=SECURITY.md)
 
 ---
 
-## 💬 Support
-
-If you encounter any issues or have feature suggestions, open an issue on [GitHub Issues](https://github.com/your-username/devpilot/issues).
-
+<p align="center">
+Built with ❤️ by Ahmed G3far and the open source community
+</p>
 
