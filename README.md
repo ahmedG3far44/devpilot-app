@@ -1,20 +1,8 @@
-<div align="start">
-  <table style="border:none;">
-    <tr style="border:none;">
-      <td style="border:none;">
-        <img src="https://github.com/user-attachments/assets/36cbb327-2ba9-44f5-9dbc-bfbf80f8ab81" width="60" height="60" />
-      </td>
-      <td style="border:none;">
-        <h1>DevPilot</h1>
-      </td>
-    </tr>
-  </table>
-</div>
+# DevPilot :
 
-
-
-**devPilot** is an open-source, self-hosted PaaS (Platform as a Service) that gives developers a Vercel-like deployment experience on their own infrastructure. Connect your GitHub, select a repository, and let devPilot handle the heavy lifting—from cloning and building to SSL termination and DNS records.
-
+<p align="center">
+  DevPilot is an open-source, self-hosted PaaS (Platform as a Service) that gives developers a Vercel-like deployment experience on their own infrastructure. Connect your GitHub, select a repository, and let devPilot handle the heavy lifting—from cloning and building to SSL termination and DNS records.
+</p>
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/37c7c2ed-27b8-4040-bf2e-0c7efd4e51bb" width="100%" />
