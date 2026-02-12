@@ -706,13 +706,10 @@ function DeploymentHistory({
 
     const getStatusIcon = (status: ProjectStatus | DeploymentStatus) => {
         switch (status) {
-            case "active":
             case "success":
                 return <CheckCircle2 className="h-4 w-4" />
             case "failed":
                 return <XCircle className="h-4 w-4" />
-            case "stopped":
-                return <Square className="h-4 w-4" />
             default:
                 return null
         }
@@ -794,7 +791,7 @@ function DeploymentHistory({
                                 </div>
 
                                 {selectedDeployment === deployment._id && deployment.last_commit && (
-                                    <div className="mt-4 rounded-md border bg-muted/50 p-4 space-y-2">
+                                    <div className="mt-4 space-y-1">
                                         <div className="text-sm">
                                             <span className="text-muted-foreground">Deploy ID:</span>{" "}
                                             <code className="ml-2">{deployment._id}</code>
@@ -807,9 +804,13 @@ function DeploymentHistory({
                                             <span className="text-muted-foreground">Commit:</span>{" "}
                                             <span className="ml-2">{deployment.last_commit.message}</span>
                                         </div>
-                                        <div className="text-sm">
-                                            <span className="text-muted-foreground">Author:</span>{" "}
-                                            <span className="ml-2">{deployment.last_commit.author.name} ({deployment.last_commit.author.email})</span>
+                                        <div className="text-sm flex justify-start items-center gap-2">
+                                            <span className="text-muted-foreground ">Author:</span>{" "}
+
+                                            {deployment.last_commit.author?.avatar_url && (
+                                                <img src={deployment.last_commit.author?.avatar_url} alt="" className="h-4 w-4 rounded-full" />
+                                            )}
+                                            <span>{deployment.last_commit.author?.name} ({deployment.last_commit.author?.email})</span>
                                         </div>
                                     </div>
                                 )}
@@ -1006,8 +1007,8 @@ function DeploymentsAction({
                 <div className="mt-4 flex gap-2">
                     {(projectData.status === "active" || projectData.status === "failed") && (
                         <Button disabled={!mustRedeploy} onClick={() => handleRedeploy(projectData._id)} variant={mustRedeploy ? "default" : "outline"} size="sm">
-                            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCw className="mr-2 h-4 w-4" />}
-                            Redeploy
+                            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <span className="animated-pulse  inline-flex items-center gap-2"><span className="flex items-center justify-center w-3 h-3 rounded-full bg-amber-500/20 animate-pulse backdrop-brightness-100">
+                                <span className="inline-block w-2 h-2 rounded-full bg-amber-500"></span></span>Redeploy</span>}
                         </Button>
                     )}
                     {

@@ -101,7 +101,8 @@ export interface RepositoryCardData {
     private?: boolean;
     stargazers_count?: number;
     forks_count?: number;
-    updated_at?: string;
+    updated_at?: Date;
+    created_at?: Date;
     default_branch?: string;
     owner?: {
         login: string;
@@ -144,7 +145,7 @@ export interface ProjectFormData {
     package_manager: PackageManagerEnumType;
     run_script: string;
     main_dir: string;
-    status?: 'active' | 'failed';
+    status?: 'active' | 'failed' | 'stopped';
     is_deployed: boolean;
     environments: IEnvironment[];
     production_url?: string;
@@ -242,6 +243,7 @@ export interface Author {
     name: string;
     email: string;
     date: string;
+    avatar_url?: string;
 }
 
 export interface LastCommit {

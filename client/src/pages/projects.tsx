@@ -86,23 +86,23 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ onActionClick }) => {
     const statusConfig = {
       active: {
         variant: "default" as const,
-        label: "Active",
+        label: "active",
         className: "bg-green-700 text-zinc-100 border border-green-600",
       },
-      pending: {
-        variant: "secondary" as const,
-        label: "Pending",
-        className: "bg-zinc-700 text-gray-200 border border-gray-600",
-      },
-      canceled: {
+      failed: {
         variant: "destructive" as const,
-        label: "Canceled",
+        label: "failed",
         className: "bg-rose-600 text-rose-200 border border-rose-600",
+      },
+      stopped: {
+        variant: "secondary" as const,
+        label: "stopped",
+        className: "bg-zinc-600 text-zinc-200 border border-zinc-600",
       },
     };
 
     const config =
-      statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+      statusConfig[status as keyof typeof statusConfig] || statusConfig.failed;
 
     return (
       <Badge className={config.className} variant={config.variant}>
