@@ -391,3 +391,9 @@ export interface ProjectContextType {
     deleting: boolean;
     error: string | null;
 }
+
+export interface DeploymentStep {
+  type: string | 'command' | 'success' | 'deploy' | 'reset';
+  text?: string;
+  delay: number;
+}

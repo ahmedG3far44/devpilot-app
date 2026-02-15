@@ -13,8 +13,8 @@ const HomePage: React.FC = () => {
         <Navbar />
       </div>
       <Hero />
-      <FeatureGrid />
       <DeploymentDemo />
+      <FeatureGrid />
       <Footer />
     </div>
   );
