@@ -1,0 +1,79 @@
+# .github/workflows/deploy.yml
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main  # Adjust to your branch name
+  workflow_dispatch:  # Manual trigger option
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    
+    steps:
+      - name: Pull latest changes
+        working-directory: /var/www/devpilot-app
+        run: |
+          git fetch origin
+          git reset --hard origin/main  # or your branch name
+          echo "✅ Code updated"
+
+      # ============================================
+      # BUILD & RESTART SERVER
+      # ============================================
+      - name: Build and restart server
+        working-directory: /var/www/devpilot-app/server
+        run: |
+          echo "🔧 Installing server dependencies..."
+          npm ci
+          
+          echo "🏗️  Building server..."
+          npm run build
+          
+          echo "♻️  Restarting server..."
+          npm run start &
+          
+          # If using PM2, use this instead:
+          # pm2 restart devpilot-server || pm2 start npm --name "devpilot-server" -- start
+          
+          echo "✅ Server rebuilt and restarted"
+
+      # ============================================
+      # BUILD CLIENT
+      # ============================================
+      - name: Build client
+        working-directory: /var/www/devpilot-app/client
+        run: |
+          echo "🎨 Installing client dependencies..."
+          npm ci
+          
+          echo "🏗️  Building client..."
+          npm run build
+          
+          echo "✅ Client built successfully"
+
+      # ============================================
+      # RELOAD NGINX
+      # ============================================
+      - name: Reload Nginx
+        run: |
+          echo "🔄 Testing Nginx configuration..."
+          sudo nginx -t
+          
+          echo "🔄 Reloading Nginx..."
+          sudo systemctl reload nginx
+          
+          echo "✅ Nginx reloaded successfully"
+
+      # ============================================
+      # DEPLOYMENT SUMMARY
+      # ============================================
+      - name: Deployment complete
+        run: |
+          echo "🎉 Deployment completed successfully!"
+          echo "📊 Deployment summary:"
+          echo "  - Code pulled from origin/main"
+          echo "  - Server rebuilt and restarted"
+          echo "  - Client rebuilt"
+          echo "  - Nginx reloaded"
