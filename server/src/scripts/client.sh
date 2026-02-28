@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 PROJECT_NAME=$1
@@ -8,9 +7,11 @@ APP_TYPE=$4
 SUB_DIR=${5:-"."}
 ENV_VARS=$6
 
-
-MY_DOMAIN="stacktest.space"
-HOST_ZONE_ID="Z0731459IXAN4Z3D4MLO"
+# --- CONFIGURATION ---
+MY_DOMAIN="folio.business"
+CF_ZONE_ID="b2cca1939b9eb9b3ee10375fa15196f5"
+CF_API_TOKEN="7FtsbXLZRFDSAqUwOkD8wX1Edr43IfAnx_-HzPrR"
+TARGET_IP="72.62.236.106" 
 EMAIL="ahmedjaafarbadri@gmail.com"
 
 FULL_DOMAIN="${PROJECT_NAME}.${MY_DOMAIN}"
@@ -61,7 +62,6 @@ else
     output_json "error" "Sub-directory $SUB_DIR not found in project" 404
 fi
 
-
 CURRENT_STEP="Environment Configuration"
 if [ ! -z "$ENV_VARS" ]; then
     echo -e "📝 [4/10] Writing environment variables to .env..."
@@ -83,28 +83,73 @@ else
 fi
 
 CURRENT_STEP="DNS Check/Creation"
-echo -e "☁️ [6/10] Checking AWS Route53 DNS for $FULL_DOMAIN..."
-EXISTING_RECORD=$(aws route53 list-resource-record-sets \
-    --hosted-zone-id "$HOST_ZONE_ID" \
-    --query "ResourceRecordSets[?Name == '${FULL_DOMAIN}.' || Name == '${FULL_DOMAIN}'].Name" \
-    --output text)
+echo -e "☁️ [6/10] Checking Cloudflare DNS for $FULL_DOMAIN..."
 
-if [ -z "$EXISTING_RECORD" ]; then
-    echo -e "   🆕 DNS record not found. Creating A record..."
-    IP_ADDR=$(curl -s http://checkip.amazonaws.com)
-    JSON_BATCH="{\"Changes\":[{\"Action\":\"CREATE\",\"ResourceRecordSet\":{\"Name\":\"$FULL_DOMAIN\",\"Type\":\"A\",\"TTL\":300,\"ResourceRecords\":[{\"Value\":\"$IP_ADDR\"}]}}]}"
-    CHANGE_ID=$(aws route53 change-resource-record-sets --hosted-zone-id "$HOST_ZONE_ID" --change-batch "$JSON_BATCH" --query 'ChangeInfo.Id' --output text)
-    echo -e "   ⏳ Waiting for DNS to sync active..."
-    aws route53 wait resource-record-sets-changed --id "$CHANGE_ID"
+# Fetch existing A record
+RESPONSE=$(curl -s -X GET \
+  "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/dns_records?type=A&name=$FULL_DOMAIN" \
+  -H "Authorization: Bearer $CF_API_TOKEN" \
+  -H "Content-Type: application/json")
+
+CF_SUCCESS=$(echo "$RESPONSE" | jq -r '.success')
+
+if [ "$CF_SUCCESS" != "true" ]; then
+    echo "$RESPONSE" | jq
+    output_json "error" "Cloudflare DNS fetch failed" 500
+fi
+
+CF_RECORD_ID=$(echo "$RESPONSE" | jq -r '.result[0].id // empty')
+
+if [ -z "$CF_RECORD_ID" ]; then
+    echo -e "   🆕 No A record found. Creating DNS record..."
+
+    CREATE_RESPONSE=$(curl -s -X POST \
+      "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/dns_records" \
+      -H "Authorization: Bearer $CF_API_TOKEN" \
+      -H "Content-Type: application/json" \
+      --data "$(jq -n \
+        --arg name "$FULL_DOMAIN" \
+        --arg ip "$TARGET_IP" \
+        '{type:"A", name:$name, content:$ip, ttl:60, proxied:false}')")
+
+    CREATE_SUCCESS=$(echo "$CREATE_RESPONSE" | jq -r '.success')
+
+    if [ "$CREATE_SUCCESS" != "true" ]; then
+        echo "$CREATE_RESPONSE" | jq
+        output_json "error" "Cloudflare DNS creation failed" 500
+    fi
+
+    echo -e "   ✅ DNS record created successfully."
 else
-    echo -e "   ✅ DNS record already exists. Skipping creation."
+    echo -e "   ✅ DNS A record already exists."
+fi
+
+# --- NEW: WAIT FOR PROPAGATION ---
+echo -e "⏳ [6.5/10] Waiting for DNS propagation..."
+MAX_RETRIES=18
+COUNT=0
+
+while [ $COUNT -lt $MAX_RETRIES ]; do
+    RESOLVED_IP=$(dig @8.8.8.8 "$FULL_DOMAIN" A +short | head -n1)
+
+    if [ "$RESOLVED_IP" == "$TARGET_IP" ]; then
+        echo -e "   ✨ DNS ACTIVE: $FULL_DOMAIN → $TARGET_IP"
+        break
+    fi
+
+    echo -e "   ...waiting (got: ${RESOLVED_IP:-none})"
+    sleep 10
+    ((COUNT++))
+done
+
+if [ "$RESOLVED_IP" != "$TARGET_IP" ]; then
+    output_json "error" "DNS propagation timeout" 504
 fi
 
 CURRENT_STEP="Nginx Configuration"
 echo -e "⚙️ [7/10] Configuring Nginx..."
 NGINX_CONF="/etc/nginx/sites-available/$FULL_DOMAIN"
 
-# Using -S to read password from an environment variable or parameter
 sudo tee "$NGINX_CONF" > /dev/null <<EOF
 server {
     listen 80;
@@ -116,22 +161,18 @@ server {
 EOF
 
 sudo ln -sf "$NGINX_CONF" "/etc/nginx/sites-enabled/"
-sudo nginx -t
-sudo systemctl reload nginx
+sudo nginx -t && sudo systemctl reload nginx
 
 CURRENT_STEP="SSL Setup"
-echo -e "🔒 [8/10] Securing with Let's Encrypt SSL (Certbot)..."
-sudo certbot --nginx -d "$FULL_DOMAIN" --non-interactive --agree-tos -m "$EMAIL" --reinstall > /dev/null 2>&1
+echo -e "🔒 [8/10] Securing with Let's Encrypt SSL..."
+# We add a small extra buffer just to be safe
+sleep 5
+sudo certbot --nginx -d "$FULL_DOMAIN" --non-interactive --agree-tos -m "$EMAIL" --reinstall
 
 CURRENT_STEP="Health Check"
 echo -e "🔍 [9/10] Running health check on https://$FULL_DOMAIN..."
+sleep 2
 FINAL_STATUS=$(curl -o /dev/null -s -w "%{http_code}" "https://$FULL_DOMAIN")
 
 if [ "$FINAL_STATUS" == "200" ]; then
     echo -e "✅ [10/10] Health check passed!"
-    CURRENT_STEP="None"
-    output_json "success" "Deployment completed successfully" "$FINAL_STATUS"
-else
-    echo -e "⚠️ [10/10] Health check failed with status: $FINAL_STATUS"
-    output_json "error" "App reachable but returned non-200 status" "$FINAL_STATUS"
-fi

@@ -1,8 +1,9 @@
 import mongoose from 'mongoose';
-
+import env
+ from '../utils/env';
 export const connectDatabase = async (): Promise<void> => {
   try {
-    const mongoUri = process.env.DATABASE_URL as string || "mongodb://localhost:27017/devpil";
+    const mongoUri =env.DATABASE_URL;
     
     await mongoose.connect(mongoUri);
     

@@ -6,13 +6,13 @@ import indexRouter from "./routes/index.route"
 import express from 'express';
 
 // import { errorHandler } from './middlewares/errorHandler';
-import {connectDatabase} from './configs/db';
+import {connectDatabase} from './config/db';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "http://localhost:5173";
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "http://localhost:3000";
 
 
 app.use(cookieParser())
@@ -32,7 +32,7 @@ app.use(express.json());
 app.use(express.urlencoded({extended: true}));
 
 
-app.get('/health', (req, res) => {
+app.get('/', (req, res) => {
     res.status(200).json({status: 'ok', timestamp: new Date().toISOString()});
 });
 
@@ -44,7 +44,7 @@ app.use((req, res) => {
 });
 
 
-const startServer = async () => {
+const start = async () => {
     try {
         await connectDatabase();
 
@@ -60,7 +60,7 @@ const startServer = async () => {
     }
 };
 
-startServer()
+start()
 
 
 export default app;

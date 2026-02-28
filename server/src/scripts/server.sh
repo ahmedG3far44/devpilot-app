@@ -11,9 +11,12 @@ ENV_VARS=$7
 RUN_CMD=${8:-"npm run start"} 
 
 
-MY_DOMAIN="stacktest.space"
-HOST_ZONE_ID="Z0731459IXAN4Z3D4MLO"
+MY_DOMAIN="folio.business"
+CF_ZONE_ID="b2cca1939b9eb9b3ee10375fa15196f5"
+CF_API_TOKEN="7FtsbXLZRFDSAqUwOkD8wX1Edr43IfAnx_-HzPrR"
+TARGET_IP="72.62.236.106" 
 EMAIL="ahmedjaafarbadri@gmail.com"
+
 
 FULL_DOMAIN="api.${PROJECT_NAME}.${MY_DOMAIN}"
 PM2_NAME="api.${PROJECT_NAME}"
@@ -114,14 +117,90 @@ fi
 pm2 save > /dev/null 2>&1
 
 CURRENT_STEP="DNS Check/Creation"
-echo -e "☁️ [7/11] Validating AWS Route53 DNS..."
-EXISTING_RECORD=$(aws route53 list-resource-record-sets --hosted-zone-id "$HOST_ZONE_ID" --query "ResourceRecordSets[?Name == '${FULL_DOMAIN}.' || Name == '${FULL_DOMAIN}'].Name" --output text)
-if [ -z "$EXISTING_RECORD" ]; then
-    IP_ADDR=$(curl -s http://checkip.amazonaws.com)
-    JSON_BATCH="{\"Changes\":[{\"Action\":\"CREATE\",\"ResourceRecordSet\":{\"Name\":\"$FULL_DOMAIN\",\"Type\":\"A\",\"TTL\":300,\"ResourceRecords\":[{\"Value\":\"$IP_ADDR\"}]}}]}"
-    CHANGE_ID=$(aws route53 change-resource-record-sets --hosted-zone-id "$HOST_ZONE_ID" --change-batch "$JSON_BATCH" --query 'ChangeInfo.Id' --output text)
-    aws route53 wait resource-record-sets-changed --id "$CHANGE_ID"
+echo -e "☁️ [7/11] Validating Cloudflare DNS..."
+
+RESPONSE=$(curl -s -X GET \
+  "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/dns_records?type=A&name=$FULL_DOMAIN" \
+  -H "Authorization: Bearer $CF_API_TOKEN" \
+  -H "Content-Type: application/json")
+
+if [ "$(echo "$RESPONSE" | jq -r '.success')" != "true" ]; then
+    echo "$RESPONSE" | jq
+    output_json "error" "Cloudflare DNS lookup failed" 500
 fi
+
+CF_RECORD_ID=$(echo "$RESPONSE" | jq -r '.result[0].id // empty')
+CF_RECORD_IP=$(echo "$RESPONSE" | jq -r '.result[0].content // empty')
+
+if [ -z "$CF_RECORD_ID" ]; then
+    echo -e "   🆕 Creating A record for $FULL_DOMAIN → $TARGET_IP"
+
+    CREATE_RESPONSE=$(curl -s -X POST \
+      "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/dns_records" \
+      -H "Authorization: Bearer $CF_API_TOKEN" \
+      -H "Content-Type: application/json" \
+      --data "$(jq -n \
+        --arg name "$FULL_DOMAIN" \
+        --arg ip "$TARGET_IP" \
+        '{type:"A", name:$name, content:$ip, ttl:60, proxied:false}')")
+
+    if [ "$(echo "$CREATE_RESPONSE" | jq -r '.success')" != "true" ]; then
+        echo "$CREATE_RESPONSE" | jq
+        output_json "error" "Cloudflare DNS creation failed" 500
+    fi
+
+    echo -e "   ✅ DNS record created."
+else
+    echo -e "   ✅ DNS record exists ($CF_RECORD_IP)"
+fi
+
+
+echo -e "⏳ [7.5/11] Waiting for DNS + HTTP validation readiness..."
+
+MAX_RETRIES=30          # up to ~5 minutes
+SLEEP_SECONDS=10
+COUNT=0
+DNS_READY=false
+HTTP_READY=false
+
+while [ $COUNT -lt $MAX_RETRIES ]; do
+    # 1️⃣ DNS CHECK (A record only)
+    RESOLVED_IPS=$(dig @8.8.8.8 "$FULL_DOMAIN" A +short)
+
+    if echo "$RESOLVED_IPS" | grep -q "^$TARGET_IP$"; then
+        DNS_READY=true
+    else
+        DNS_READY=false
+    fi
+
+    # 2️⃣ HTTP CHECK (Let’s Encrypt requires this)
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://$FULL_DOMAIN" || true)
+
+    if [[ "$HTTP_CODE" == "200" || "$HTTP_CODE" == "301" || "$HTTP_CODE" == "308" ]]; then
+        HTTP_READY=true
+    else
+        HTTP_READY=false
+    fi
+
+    # 3️⃣ Decision
+    if [ "$DNS_READY" = true ] && [ "$HTTP_READY" = true ]; then
+        echo -e "   ✨ DNS and HTTP are READY"
+        break
+    fi
+
+    echo -e "   ...waiting (dns=$DNS_READY http=$HTTP_READY)"
+    sleep $SLEEP_SECONDS
+    ((COUNT++))
+done
+
+if [ "$DNS_READY" != true ]; then
+    output_json "error" "DNS did not propagate in time" 504
+fi
+
+if [ "$HTTP_READY" != true ]; then
+    output_json "error" "HTTP not reachable for ACME challenge" 504
+fi
+
 
 CURRENT_STEP="Nginx Proxy Configuration"
 echo -e "⚙️ [8/11] Configuring Nginx Reverse Proxy..."
