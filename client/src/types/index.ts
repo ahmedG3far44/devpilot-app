@@ -295,6 +295,21 @@ export interface TrafficData {
 }
 
 // ============================================================================
+// METRICS TYPES
+// ============================================================================
+
+export interface ProjectMetrics {
+    name?: string;
+    cpu?: number;
+    memory?: number;
+    uptime?: number;
+    status?: string;
+    restarts?: number;
+    serverUptime?: number;
+    checkedAt?: string;
+}
+
+// ============================================================================
 // CONTEXT TYPES
 // ============================================================================
 

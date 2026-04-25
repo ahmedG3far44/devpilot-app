@@ -53,7 +53,9 @@ import { Separator } from "@/components/ui/separator"
 import { cn, formatDuration, formatTimestamp } from "@/lib/utils"
 import { useProject } from "@/context/projects/ProjectsContext"
 import { useNavigate, useParams } from "react-router-dom"
-import type { Deployment, DeploymentStatus, EnvVariable, LogLevel, LogsEntry, ProjectDetailsData, ProjectStatus } from "@/types"
+import type { Deployment, DeploymentStatus, EnvVariable, ProjectDetailsData, ProjectMetrics, ProjectStatus } from "@/types"
+import { useProjectMetrics } from '@/hooks/useProjectMetrics';
+import { useDeploymentLogs } from '@/hooks/useDeploymentLogs';
 
 
 const BASE_URL = import.meta.env.VITE_BASE_URL as string;
@@ -63,33 +65,6 @@ export default function DeploymentDetails() {
     const { deleteProject, getProjectDetailsById, deleting } = useProject();
     const [projectData, setProjectData] = useState<ProjectDetailsData | null>(null)
     const [deployments, setDeployments] = useState<Deployment[]>([])
-    const [logs] = useState<LogsEntry[]>([
-        {
-            id: "1",
-            timestamp: new Date(Date.now() - 5 * 60 * 1000),
-            level: "info",
-            message: "Server started on port 3001",
-        },
-        {
-            id: "2",
-            timestamp: new Date(Date.now() - 3 * 60 * 1000),
-            level: "info",
-            message: "API endpoint /api/users called successfully",
-        },
-        {
-            id: "3",
-            timestamp: new Date(Date.now() - 2 * 60 * 1000),
-            level: "warn",
-            message: "High memory usage detected: 85%",
-        },
-        {
-            id: "4",
-            timestamp: new Date(Date.now() - 1 * 60 * 1000),
-            level: "error",
-            message: "Failed to connect to external API: timeout",
-        },
-    ])
-
     const navigate = useNavigate()
     const [showDeleteDialog, setShowDeleteDialog] = useState(false)
     const [showStopDialog, setShowStopDialog] = useState(false)
@@ -98,6 +73,16 @@ export default function DeploymentDetails() {
     const [envVariables, setEnvVariables] = useState<EnvVariable[]>([])
 
     const [newEnvKey, setNewEnvKey] = useState("")
+
+    // Fetch real metrics from server
+    const { metrics, loading: metricsLoading } = useProjectMetrics(
+        projectId,
+        true, // auto-refresh every 30 seconds
+        30000
+    );
+
+    // Fetch real-time logs via SSE
+    useDeploymentLogs(projectId);
 
 
     async function fetchProjectDetails() {
@@ -118,7 +103,7 @@ export default function DeploymentDetails() {
             await deleteProject(projectId!)
             setShowDeleteDialog(false)
             navigate("/projects")
-        } catch (error) {
+        } catch {
             setShowDeleteDialog(true)
         } finally {
             setShowDeleteDialog(false)
@@ -216,6 +201,8 @@ export default function DeploymentDetails() {
                             uptime={uptimeString <= "1" ? "N/A" : uptimeString}
                             deploymentDuration={calculateDeploymentDuration()}
                             totalDeployments={deployments.length}
+                            metrics={metrics}
+                            metricsLoading={metricsLoading}
                         />
 
                         <Card>
@@ -231,7 +218,7 @@ export default function DeploymentDetails() {
                         </Card>
 
                         {canShowLogs() && (
-                            <RuntimeLogs logs={logs as LogsEntry[]} />
+                            <RuntimeLogs projectId={projectId!} />
                         )}
                     </div>
 
@@ -292,13 +279,25 @@ function DeploymentsInsights({
     projectData,
     uptime,
     deploymentDuration,
-    totalDeployments
+    totalDeployments,
+    metrics,
+    metricsLoading
 }: {
     projectData: ProjectDetailsData
     uptime: string
     deploymentDuration: number
     totalDeployments: number
+    metrics?: ProjectMetrics | null
+    metricsLoading?: boolean
 }) {
+    // Format memory from bytes to MB/GB
+    const formatMemory = (bytes?: number) => {
+        if (!bytes) return 'N/A';
+        const mb = bytes / (1024 * 1024);
+        if (mb > 1024) return `${(mb / 1024).toFixed(1)} GB`;
+        return `${mb.toFixed(0)} MB`;
+    };
+
     return (
         <div className="grid gap-4 md:grid-cols-4">
             <Card>
@@ -344,8 +343,35 @@ function DeploymentsInsights({
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Real-time metrics cards */}
+            {metrics && !metricsLoading && (
+                <>
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-sm font-medium text-muted-foreground">CPU Usage</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex items-baseline gap-2">
+                                <div className="text-2xl font-bold">{metrics.cpu?.toFixed(1) || 'N/A'}%</div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-sm font-medium text-muted-foreground">Memory</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex items-baseline gap-2">
+                                <div className="text-2xl font-bold">{formatMemory(metrics.memory)}</div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </>
+            )}
         </div>
-    )
+    );
 }
 
 const getStatusColor = (status: ProjectStatus | DeploymentStatus) => {
@@ -652,46 +678,40 @@ function EnvironmentVariables({
     )
 }
 
-function RuntimeLogs({ logs }: { logs: LogsEntry[] }) {
-    const getLogLevelColor = (level: LogLevel) => {
-        switch (level) {
-            case "info":
-                return "text-blue-500"
-            case "warn":
-                return "text-yellow-500"
-            case "error":
-                return "text-red-500"
-            default:
-                return ""
-        }
-    }
+function RuntimeLogs({ projectId }: { projectId: string }) {
+    const { logs: sseLogs, isConnected, error: logsError } = useDeploymentLogs(projectId);
     return (
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <Terminal className="h-5 w-5" />
                     Runtime Logs
+                    {isConnected && <span className="text-xs text-green-500 ml-2">● Live</span>}
                 </CardTitle>
             </CardHeader>
             <CardContent>
                 <ScrollArea className="h-[300px]">
                     <div className="space-y-2 font-mono text-sm">
-                        {logs.map((log) => (
-                            <div key={log.id} className="flex gap-3 rounded border border-border bg-muted/30 p-2">
-                                <span className="text-muted-foreground whitespace-nowrap">
-                                    {new Date(log.timestamp).toLocaleTimeString()}
-                                </span>
-                                <span className={cn("font-semibold uppercase", getLogLevelColor(log.level as LogLevel))}>
-                                    [{log.level}]
-                                </span>
-                                <span className="flex-1">{log.message}</span>
-                            </div>
-                        ))}
+                        {logsError && (
+                            <div className="text-red-500 p-2">{logsError}</div>
+                        )}
+                        {sseLogs.length === 0 ? (
+                            <div className="text-muted-foreground">No logs available</div>
+                        ) : (
+                            sseLogs.map((log, i) => (
+                                <div key={i} className="flex gap-3 rounded border border-border bg-muted/30 p-2">
+                                    <span className="text-muted-foreground whitespace-nowrap">
+                                        {log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : ''}
+                                    </span>
+                                    <span className="flex-1">{log.message}</span>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </ScrollArea>
             </CardContent>
         </Card>
-    )
+    );
 }
 
 function DeploymentHistory({

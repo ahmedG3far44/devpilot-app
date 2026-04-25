@@ -318,61 +318,77 @@ export const getProjectDetails = async (req : AuthRequest, res : Response) : Pro
 };
 
 
-export const reDeployProject = async (req : AuthRequest, res : Response) : Promise < void > => {
+export const reDeployProject = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-
         const user = req.user;
         const token = req.cookies.access_token;
 
-        if (! user) {
-            res.status(401).json({error: 'Unauthorized: User not authenticated'});
+        if (!user) {
+            res.status(401).json({ error: 'Unauthorized: User not authenticated' });
             return;
         }
 
-        const {project_id} = req.params;
+        const { project_id } = req.params;
+        const project = await Project.findOne({ _id: project_id });
 
-        const project = await Project.findOne({_id: project_id});
-
-        if (! project) {
-            res.status(404).json({error: 'Project not found'});
+        if (!project) {
+            res.status(404).json({ error: 'Project not found' });
             return;
         }
 
-        // write a redeploy project bash script
+        // Set up streaming response
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.setHeader('Transfer-Encoding', 'chunked');
+        res.flushHeaders();
 
-        // const script = `#!/bin/bash
-        // cd ${project.path}
-        // git pull
-        // npm install
-        // npm run build
-        // pm2 restart ${project.name}`;
+        // Build redeploy command
+        const projectDir = `/var/www/${project.name.toLowerCase()}`;
+        const mainDir = project.main_dir || './';
+        
+        // Determine package manager
+        const pkgManager = project.package_manager?.toLowerCase() || 'npm';
+        const installCmd = pkgManager === 'yarn' ? 'yarn install' : pkgManager === 'pnpm' ? 'pnpm install' : 'npm install';
+        const buildCmd = project.build_script || 'npm run build';
+        
+        // Redeploy script
+        const redeployCommands = [
+            `cd ${projectDir}`,
+            `git fetch origin ${project.branch || 'main'}`,
+            `git reset --hard origin/${project.branch || 'main'}`,
+            installCmd,
+            buildCmd,
+            `pm2 restart api.${project.name.toLowerCase()} || pm2 start ${pkgManager} --name "api.${project.name.toLowerCase()}" -- "${project.run_script}"`
+        ].join(' && ');
 
-        // fs.writeFileSync(`${project.path}/redeploy.sh`, script);
+        res.write('Starting redeploy...\n');
 
-        // check if the status of redeploy is completed correct
+        const result = await executeSSHCommand(redeployCommands);
+        
+        res.write(result.output);
+        if (result.error) {
+            res.write(`\nErrors: ${result.error}\n`);
+        }
 
-        // create a new deployment
-        // const last_commit = await getLastCommit(token, project.name, user.name);
+        // Update version
+        const version = incrementVersion(project.version || '1.0.0', 'patch', true);
+        await Project.updateOne({ _id: project_id }, { version, status: 'active', updatedAt: new Date() });
 
-        // if (!last_commit) {
-        //     res.status(404).json({error: 'Last commit not found'});
-        //     return;
-        // }
+        // Create deployment record
+        const lastCommit = token ? await getLastCommit(token, project.name, user.username).catch(() => null) : null;
+        const deployment = await Deployment.create({
+            project_name: project.name,
+            version,
+            status: result.code === 0 ? 'success' : 'failed',
+            last_commit: lastCommit
+        });
 
-        const version = incrementVersion(project ?. version || "1.0.0", "patch", true);
-
-        const deployment = await Deployment.create({project_name: project.name, version: version, status: 'success'});
-
-
-        await Project.updateOne({
-            _id: project_id
-        }, {version: version});
-
-        res.status(200).json({success: true, message: 'redeployed successfully', deployment});
+        res.write(`\nDEPLOY_STATUS:${result.code === 0 ? 'SUCCESS' : 'FAILED'}\n`);
+        res.write(`VERSION:${version}\n`);
+        res.end();
     } catch (error) {
-
+        console.error('Redeploy error:', error);
         res.status(500).json({
-            error: 'Failed to update deployment',
+            error: 'Failed to redeploy',
             details: error instanceof Error ? error.message : 'Unknown error'
         });
     }
@@ -684,3 +700,81 @@ export const syncProjectEnv = async (req : AuthRequest, res : Response) => {
         });
     }
 }
+
+// SSE endpoint for streaming real-time deployment logs
+export const streamDeploymentLogs = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { project_id } = req.params;
+        
+        // Set SSE headers
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no');
+        
+        // Send initial connection message
+        res.write('event: connected\ndata: {"status": "connected"}\n\n');
+        
+        const project = await Project.findById(project_id);
+        if (!project) {
+            res.write('data: {"error": "Project not found"}\n\n');
+            res.end();
+            return;
+        }
+        
+        // Get latest deployment logs from remote server via SSH
+        const logsCommand = `tail -n 100 /var/log/devpilot/${project.name.toLowerCase()}.log 2>/dev/null || echo "No logs available"`;
+        
+        const result = await executeSSHCommand(logsCommand);
+        const logs = result.output.split('\n').filter(line => line.trim());
+        
+        for (const line of logs.slice(-50)) {
+            res.write(`data: ${JSON.stringify({ message: line, timestamp: new Date().toISOString() })}\n\n`);
+        }
+        
+        res.write('event: complete\ndata: {"status": "complete"}\n\n');
+        res.end();
+    } catch (error) {
+        res.write(`data: ${JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' })}\n\n`);
+        res.end();
+    }
+};
+
+// Endpoint to get CPU, memory metrics from remote server
+export const getProjectMetrics = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { project_id } = req.params;
+        
+        const project = await Project.findById(project_id);
+        if (!project) {
+            res.status(404).json({ error: 'Project not found' });
+            return;
+        }
+        
+        // Get metrics via SSH (CPU, memory, uptime)
+        const metricsCommand = `pm2 jlist | jq -r '.[] | select(.name == "api.${project.name.toLowerCase()}" // .name == "${project.name.toLowerCase()}") | {name: .name, cpu: .monit.cpu, memory: .monit.memory, uptime: .pm2_env.pm_uptime, status: .pm2_env.STATUS, restarts: .pm2_env.restart_time}' 2>/dev/null || echo '{}'`;
+        
+        const result = await executeSSHCommand(metricsCommand);
+        
+        let metrics = {};
+        try {
+            metrics = JSON.parse(result.output) || {};
+        } catch {
+            metrics = { raw: result.output };
+        }
+        
+        res.status(200).json({
+            success: true,
+            metrics: {
+                ...metrics,
+                serverUptime: process.uptime(),
+                checkedAt: new Date().toISOString()
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            error: 'Failed to fetch metrics',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+};

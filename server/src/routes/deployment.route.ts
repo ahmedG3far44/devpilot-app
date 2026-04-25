@@ -5,18 +5,17 @@ import {
     deleteProject,
     deployProject,
     getProjectDetails,
+    getProjectMetrics,
     reDeployProject,
     startProject,
     stopProject,
+    streamDeploymentLogs,
     syncProjectEnv
 } from '../controllers/deployment.controller';
 import {getProjectsList} from '../controllers/project.controller';
 
-
 const router = Router();
 
-
-// router.use(authMiddleware);
 
 // get all projects
 router.get('/', authMiddleware, getProjectsList);
@@ -41,7 +40,13 @@ router.post('/:project_id/stop', authMiddleware, stopProject);
 router.post('/:project_id/start', authMiddleware, startProject);
 
 
+// sync environment variables
 router.post('/:project_id/sync', authMiddleware, syncProjectEnv);
 
+// get project metrics (CPU, memory, uptime)
+router.get('/:project_id/metrics', authMiddleware, getProjectMetrics);
+
+// stream deployment logs (SSE)
+router.get('/:project_id/logs/stream', authMiddleware, streamDeploymentLogs);
 
 export default router;
