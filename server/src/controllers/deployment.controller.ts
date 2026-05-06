@@ -5,18 +5,16 @@ import {AuthRequest, SyncEnvSchema} from '../types';
 import {buildDeployCommand} from '../utils/generateCommand';
 import {getLastCommit, incrementVersion} from '../utils/getUser';
 
-import dotenv from 'dotenv'
+import env from '../utils/env';
 import Project from '../models/Project';
 import Deployment from '../models/Deployment';
 
-dotenv.config()
 
-
-const HOST = process.env.EC2_HOST as string;
-const PASSWORD = process.env.EC2_SSH_PASSWORD as string;
-const SSH_PORT = process.env.EC2_SSH_PORT as string;
-const USERNAME = process.env.EC2_USER as string;
-const DOMAIN = process.env.DOMAIN as string;
+const HOST = env.EC2_HOST;
+const PASSWORD = env.EC2_SSH_PASSWORD;
+const SSH_PORT = env.EC2_SSH_PORT;
+const USERNAME = env.EC2_USER;
+const DOMAIN = env.DOMAIN;
 
 
 const SCRIPTS_PATH = '/home/devpilot/scripts';

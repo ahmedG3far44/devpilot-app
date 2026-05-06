@@ -1,6 +1,7 @@
 import {Response, NextFunction} from "express";
 import Jwt, {JwtPayload} from "jsonwebtoken";
 import {AuthRequest} from "../types";
+import env from "../utils/env";
 
 export const authMiddleware = async (req : AuthRequest, res : Response, next : NextFunction) => {
     try {
@@ -10,7 +11,7 @@ export const authMiddleware = async (req : AuthRequest, res : Response, next : N
             return res.status(401).json({error: "Authentication required"});
         }
 
-        const decoded = Jwt.verify(token, process.env.JWT_SECRET as string)as JwtPayload;
+        const decoded = Jwt.verify(token, env.JWT_SECRET)as JwtPayload;
 
         if (! decoded || typeof decoded !== "object") {
             return res.status(401).json({error: "Invalid token"});

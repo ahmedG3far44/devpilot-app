@@ -1,15 +1,12 @@
-import dotenv from "dotenv"
-
 import { Client } from "ssh2";
 
+import env from "./env";
 
-dotenv.config();
 
-
-const host=  process.env.EC2_HOST!;
-const username=  process.env.EC2_USER!;
-const password=  process.env.EC2_PASSWORD!;
-const port= parseInt(process.env.SSH_PORT as string) || 22;
+const host = env.EC2_HOST;
+const username = env.EC2_USER;
+const password = env.EC2_SSH_PASSWORD;
+const port = parseInt(env.EC2_SSH_PORT) || 22;
 
 
 export const streamRemoteCommand = (

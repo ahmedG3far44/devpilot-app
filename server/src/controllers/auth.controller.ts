@@ -4,6 +4,7 @@ import { Request, Response } from "express";
 import env from "../utils/env";
 import jwt from "jsonwebtoken";
 import User from "../models/User";
+import { AuthRequest } from "../types";
 
 dotenv.config();
 
@@ -105,22 +106,22 @@ export const githubCallback = async (req: Request, res: Response) => {
     }
 };
 
-export const getUserSessionData = async (req: Request, res: Response) => {
+export const getUserSessionData = async (req: AuthRequest, res: Response) => {
     try {
-        const token = req.cookies.access_token;
-        if (!token) {
+        const userFromToken = req.user;
+        if (!userFromToken || !userFromToken.username) {
             return res.status(401).json({ authenticated: false });
         }
-        const userRes = await fetch("https://api.github.com/user", {
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        });
-        const data = await userRes.json()
-        const user = await User.findOne({ username: data.login })
+
+        const user = await User.findOne({ username: userFromToken.username });
+        
+        if (!user) {
+            return res.status(404).json({ authenticated: false, error: "User not found in database" });
+        }
+
         return res.json({ authenticated: true, user });
     } catch (error) {
-        console.error("GitHub auth error:", error);
+        console.error("Session data error:", error);
         res.status(500).json({ error: "Internal Server Error" });
     }
 }
