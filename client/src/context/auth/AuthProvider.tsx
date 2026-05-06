@@ -13,7 +13,7 @@ const AuthProvider: FC<PropsWithChildren> = ({ children }) => {
   const [repos, setRepos] = useState<RepositoryCardData[]>([]);
 
   const isAdmin = user?.isAdmin || false;
-  const isAuthenticated = user ? true : false;
+  const isAuthenticated = user?.username ? true : false;
 
   const getCurrentUserSesssion = async () => {
     try {
@@ -24,9 +24,14 @@ const AuthProvider: FC<PropsWithChildren> = ({ children }) => {
         credentials: "include",
       });
 
-      const data = await response.json();
+      if(!response.ok){
+        throw new Error("Failed to get current user session");
+      }
 
-      if (data.authenticated) {
+      const data = await response.json();
+      console.log("current user session data", data)
+
+      if (data) {
         localStorage.setItem("user", JSON.stringify(data.user));
         setUser(data.user);
       }

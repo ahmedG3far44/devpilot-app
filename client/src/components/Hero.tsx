@@ -1,7 +1,7 @@
 import { useAuth } from '@/context/auth/AuthContext';
 import type { DeploymentStep } from '@/types';
 import { ArrowRight, Play, CheckCircle2, Loader2 } from 'lucide-react';
-import { useState, useEffect, useCallback, memo } from 'react';
+import { useState, useEffect, useCallback, memo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { X } from 'lucide-react';
@@ -38,21 +38,21 @@ export const Hero = () => {
                 <div className="max-w-7xl mx-auto text-center relative z-20">
 
                     {/* Badge */}
-                    <div className="z-30 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/40 border border-slate-700/50 mb-8 text-sm font-medium text-slate-300 animate-float">
+                    <div className="z-30 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary border border-border mb-8 text-sm font-medium text-muted-foreground animate-float">
                         <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" aria-hidden="true" />
                         Deploy your GitHub repos in seconds
                     </div>
 
                     {/* Heading */}
-                    <h1 className="z-30 text-5xl md:text-7xl lg:text-8xl font-black mb-6 tracking-tight text-white leading-[1.1]">
+                    <h1 className="z-30 text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 tracking-tight text-foreground leading-[1.1]">
                         GitHub-Powered <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-violet-500 to-fuchsia-500">
+                        <span className="text-primary">
                             Deployments
                         </span>
                     </h1>
 
                     {/* Subheading */}
-                    <p className="z-30 text-slate-400 text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
+                    <p className="z-30 text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
                         The simplest way to deploy your repositories. Connect your GitHub account and go live in minutes. No configuration nightmares.
                     </p>
 
@@ -60,14 +60,14 @@ export const Hero = () => {
                     <div className="z-30 flex flex-col sm:flex-row items-center justify-center gap-4 mb-20">
                         <button
                             onClick={handleGetStarted}
-                            className="cursor-pointer w-full sm:w-auto px-8 py-4 bg-violet-700 hover:bg-violet-800 text-white rounded-lg font-bold text-lg flex items-center justify-center gap-2 transition-all transform shadow-xl shadow-violet-600/25"
+                            className="cursor-pointer w-full sm:w-auto px-8 py-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-semibold text-lg flex items-center justify-center gap-2 transition-all"
                         >
                             Get Started Free <ArrowRight size={20} aria-hidden="true" />
                         </button>
 
                         <button
                             onClick={openVideoPopup}
-                            className="cursor-pointer w-full sm:w-auto px-8 py-4 bg-slate-800/50 hover:bg-slate-900 text-white border border-slate-700 rounded-lg font-bold text-lg flex items-center justify-center gap-2 transition-all"
+                            className="cursor-pointer w-full sm:w-auto px-8 py-4 bg-background hover:bg-secondary text-foreground border border-border rounded-lg font-semibold text-lg flex items-center justify-center gap-2 transition-all"
                         >
                             <Play size={18} fill="currentColor" aria-hidden="true" /> Watch Demo
                         </button>
@@ -103,15 +103,15 @@ export const TerminalLine = memo<TerminalLineProps>(({ line, index }) => {
         case 'command':
             return (
                 <div key={index} className="flex gap-2 animate-fadeIn">
-                    <span className="text-purple-400">$</span>
-                    <span className="text-green-400">vibe deploy</span>
-                    <span className="text-slate-400">my-awesome-app</span>
+                    <span className="text-primary">$</span>
+                    <span className="text-primary">vibe deploy</span>
+                    <span className="text-muted-foreground">my-awesome-app</span>
                 </div>
             );
 
         case 'success':
             return (
-                <div key={index} className="flex items-center gap-3 text-slate-300 animate-fadeIn">
+                <div key={index} className="flex items-center gap-3 text-foreground animate-fadeIn">
                     <CheckCircle2
                         size={16}
                         className="text-green-500 animate-scaleIn flex-shrink-0"
@@ -124,10 +124,10 @@ export const TerminalLine = memo<TerminalLineProps>(({ line, index }) => {
         case 'deploy':
             return (
                 <div key={index} className="pt-2 animate-fadeIn">
-                    <span className="text-purple-400">🚀 Deployed to </span>
+                    <span className="text-primary">🚀 Deployed to </span>
                     <a
                         href={line.text}
-                        className="text-indigo-400 hover:underline"
+                        className="text-primary hover:underline"
                         target="_blank"
                         rel="noopener noreferrer"
                     >
@@ -151,30 +151,41 @@ interface DeploymentTerminalProps {
 
 export const DeploymentTerminal = memo<DeploymentTerminalProps>(({ terminalLines }) => {
     const showProcessing = terminalLines.length > 0 && terminalLines.length < PROCESSING_THRESHOLD;
+    const terminalRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (terminalRef.current) {
+            terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+        }
+    }, [terminalLines]);
 
     return (
         <div className="z-50 w-full max-w-4xl mx-auto transition-all duration-300 ease-out">
-            <div className="backdrop-blur-sm backdrop-brightness-75 duration-300 transition-all relative bg-violet-900/10 border-2 border-slate-800 rounded-2xl shadow-2xl text-left">
+            <div className="duration-300 transition-all relative bg-card border border-border rounded-xl shadow-sm text-left">
 
                 {/* Terminal Header */}
-                <div className="flex items-center gap-1.5 px-4 py-3 border-b border-slate-800 bg-slate-900/50">
+                <div className="flex items-center gap-1.5 px-4 py-3 border-b border-border bg-secondary/30">
                     <div className="w-3 h-3 rounded-full bg-red-500" aria-hidden="true" />
                     <div className="w-3 h-3 rounded-full bg-yellow-500" aria-hidden="true" />
                     <div className="w-3 h-3 rounded-full bg-green-500" aria-hidden="true" />
-                    <div className="ml-4 text-xs font-mono text-slate-500">
+                    <div className="ml-4 text-xs font-mono text-muted-foreground">
                         devpilot --deploy my-awesome-app
                     </div>
                 </div>
 
                 {/* Terminal Content */}
-                <div className="p-6 font-mono text-sm sm:text-base transition-all duration-500">
+                <div
+                    ref={terminalRef}
+                    className="p-6 font-mono text-sm sm:text-base transition-all duration-500 h-64 sm:h-72 overflow-y-auto scrollbar-hide"
+                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
                     <div className="space-y-2">
                         {terminalLines.map((line, index) => (
                             <TerminalLine key={index} line={line} index={index} />
                         ))}
 
                         {showProcessing && (
-                            <div className="flex items-center gap-2 text-slate-500 animate-pulse">
+                            <div className="flex items-center gap-2 text-muted-foreground animate-pulse">
                                 <Loader2 size={16} className="animate-spin" aria-hidden="true" />
                                 <span>Processing...</span>
                             </div>

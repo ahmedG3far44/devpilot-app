@@ -2,13 +2,14 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/auth/AuthContext';
 
 import Logo from './Logo';
-import LoginButton from './LoginButton';
 
 
 const Navbar = () => {
     const { user, isAuthenticated, loading } = useAuth();
+
+    console.log("auth user from navbar", user)
     return (
-        <header className="sticky top-0 z-50 w-full backdrop-blur ">
+        <header className="sticky top-0 z-50 w-full backdrop-blur bg-background/80 border-b border-border">
             <div className="container mx-auto">
                 <div className="flex h-16 items-center justify-between">
                     <Logo />
@@ -28,7 +29,7 @@ const Navbar = () => {
                                             <div className="flex items-center gap-3 md:gap-6">
                                                 <Link
                                                     to="/user"
-                                                    className="flex items-center backdrop-blur-sm gap-2 px-3 py-2 rounded-md bg-slate-800/80 duration-300 hover:bg-slate-800/90 transition-colors group"
+                                                    className="flex items-center backdrop-blur-sm gap-2 px-3 py-2 rounded-md bg-secondary/80 duration-300 hover:bg-secondary/90 transition-colors group"
                                                 >
                                                     <div className="relative w-8 h-8 rounded-full overflow-hidden transition-all">
                                                         <img
@@ -38,15 +39,17 @@ const Navbar = () => {
                                                             loading="lazy"
                                                         />
                                                     </div>
-                                                    <h4 className="hidden group-hover:text-white font-semibold lg:block text-xs text-zinc-400 transition-colors max-w-[120px] truncate">
-                                                       @{user?.username}
+                                                    <h4 className="hidden group-hover:text-foreground font-semibold lg:block text-xs text-muted-foreground transition-colors max-w-[120px] truncate">
+                                                        @{user?.username}
                                                     </h4>
                                                 </Link>
                                             </div>
 
                                         ) : (
 
-                                            <LoginButton>Login with GitHub</LoginButton>
+                                            <Link to="/login" className='bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md transition-colors'>
+                                                Login
+                                            </Link>
 
                                         )
                                     }
@@ -79,12 +82,12 @@ export function UserSkeleton({ themeStatus }: { themeStatus: boolean }) {
                         </div>
                     </div>
                 ) : (
-                    <div className="flex items-center gap-3 md:gap-6 bg-slate-800/80 px-3 py-2 rounded-md">
+                    <div className="flex items-center gap-3 md:gap-6 bg-secondary/80 px-3 py-2 rounded-md">
                         <div className="relative w-8 h-8 rounded-full overflow-hidden transition-all">
-                            <div className="w-full h-full bg-slate-700 animate-pulse"></div>
+                            <div className="w-full h-full bg-muted animate-pulse"></div>
                         </div>
-                        <div className="hidden group-hover:text-white font-semibold lg:block text-sm text-zinc-400 transition-colors max-w-[120px] truncate">
-                            <div className="w-24 h-4 bg-slate-700 animate-pulse"></div>
+                        <div className="hidden group-hover:text-foreground font-semibold lg:block text-sm text-muted-foreground transition-colors max-w-[120px] truncate">
+                            <div className="w-24 h-4 bg-muted animate-pulse"></div>
                         </div>
                     </div>
                 )

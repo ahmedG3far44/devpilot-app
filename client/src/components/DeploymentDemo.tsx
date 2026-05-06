@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Github, FolderGit2, Settings, BarChart3, ChevronRight, Check, Search, Rocket } from 'lucide-react';
 import { Button } from './ui/button';
@@ -32,32 +31,31 @@ const DeploymentDemo: React.FC = () => {
     }, [activeStep])
     return (
 
-        <div className='max-w-7xl w-full lg:w-1/2 md:w-3/4 sm:w-full xs:w-full  mx-auto space-y-8'>
+        <div className='max-w-7xl w-full lg:w-1/2 md:w-3/4 sm:w-full xs:w-full mx-auto space-y-8'>
 
             <div>
-                <h1 className="text-center my-8 text-3xl md:text-5xl font-bold tracking-tight">Your app deployment steps</h1>
-                <p className="text-center text-slate-400 max-w-2xl mx-auto">DevPilot provides all the tools developers need to build, deploy, and monitor production-ready applications in minutes.</p>
+                <h1 className="text-center my-8 text-3xl md:text-5xl font-bold tracking-tight text-foreground">Your app deployment steps</h1>
+                <p className="text-center text-muted-foreground max-w-2xl mx-auto">DevPilot provides all the tools developers need to build, deploy, and monitor production-ready applications in minutes.</p>
             </div>
 
-            <div className="m-4  p-4 lg:m-0 md:m-0 flex flex-col justify-between items-center   bg-slate-900/40 border border-slate-800 rounded-2xl ">
+            <div className="m-4 p-4 lg:m-0 md:m-0 flex flex-col justify-between items-center bg-card border border-border rounded-2xl">
 
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-600/10 blur-[100px] pointer-events-none"></div>
                 <div className="p-8 w-full lg:w-1/2 flex justify-around items-center">
                     {steps.map((step, idx) => (
                         <div key={step.id} className="flex flex-col items-center relative z-10 group">
                             <div
                                 className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 border-2 ${idx <= activeStep
-                                    ? 'bg-violet-600 border-violet-400 shadow-lg shadow-violet-600/30 text-white'
-                                    : 'bg-slate-800 border-slate-700 text-slate-500'
+                                    ? 'bg-primary border-primary text-primary-foreground shadow-sm'
+                                    : 'bg-secondary border-border text-muted-foreground'
                                     }`}
                             >
                                 <step.icon size={22} />
                             </div>
-                            <span className={`mt-3 text-xs font-bold uppercase tracking-wider ${idx <= activeStep ? 'text-violet-400' : 'text-slate-600'}`}>
+                            <span className={`mt-3 text-xs font-bold uppercase tracking-wider ${idx <= activeStep ? 'text-primary' : 'text-muted-foreground'}`}>
                                 {step.label}
                             </span>
                             {idx < steps.length - 1 && (
-                                <div className={`absolute left-[calc(100%+0.5rem)] top-6 w-[calc(100%-1rem)] h-0.5 hidden md:block ${idx < activeStep ? 'bg-purple-600' : 'bg-slate-800'}`}></div>
+                                <div className={`absolute left-[calc(100%+0.5rem)] top-6 w-[calc(100%-1rem)] h-0.5 hidden md:block ${idx < activeStep ? 'bg-primary' : 'bg-border'}`}></div>
                             )}
                         </div>
                     ))}
@@ -67,14 +65,14 @@ const DeploymentDemo: React.FC = () => {
 
                     {activeStep === 0 && (
                         <div className="text-center animate-in fade-in zoom-in duration-500">
-                            <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-700 shadow-inner">
-                                <Github size={40} className="text-white" />
+                            <div className="w-20 h-20 bg-secondary rounded-full flex items-center justify-center mx-auto mb-6 border border-border shadow-inner">
+                                <Github size={40} className="text-foreground" />
                             </div>
-                            <h3 className="text-2xl font-bold mb-3">Connect your account</h3>
-                            <p className="text-slate-400 mb-8 max-w-sm">We'll need permission to read your public repositories to begin deployment.</p>
+                            <h3 className="text-2xl font-bold mb-3 text-foreground">Connect your account</h3>
+                            <p className="text-muted-foreground mb-8 max-w-sm">We'll need permission to read your public repositories to begin deployment.</p>
                             <button
                                 onClick={next}
-                                className="px-6  cursor-pointer py-2 mx-auto bg-white text-black font-bold rounded-lg flex items-center gap-2 hover:bg-slate-200 transition-colors"
+                                className="px-6 cursor-pointer py-2 mx-auto bg-primary text-primary-foreground font-bold rounded-lg flex items-center gap-2 hover:opacity-90 transition-colors"
                             >
                                 Authorize with GitHub <ChevronRight size={18} />
                             </button>
@@ -83,13 +81,13 @@ const DeploymentDemo: React.FC = () => {
                     {activeStep === 1 && (
                         <div className="w-full max-w-xl animate-in fade-in slide-in-from-right-4 duration-500">
                             <div className="flex items-center justify-between mb-6 space-x-4">
-                                <h3 className="text-md font-bold">Select Repository</h3>
+                                <h3 className="text-md font-bold text-foreground">Select Repository</h3>
                                 <div className="relative">
-                                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                                     <input
                                         type="text"
                                         placeholder="Search repos..."
-                                        className="bg-slate-800/50 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                                        className="bg-background border border-border rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
                                     />
                                 </div>
                             </div>
@@ -98,17 +96,17 @@ const DeploymentDemo: React.FC = () => {
                                     <div
                                         key={repo.name}
                                         onClick={() => setSelectedRepo(repo.name)}
-                                        className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between group ${selectedRepo === repo.name ? 'border-violet-500 bg-violet-500/5' : 'border-slate-800 bg-slate-800/20 hover:border-slate-700'
+                                        className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between group ${selectedRepo === repo.name ? 'border-primary bg-primary/5' : 'border-border bg-secondary/20 hover:border-primary/50'
                                             }`}
                                     >
                                         <div className="flex items-center gap-4">
-                                            <FolderGit2 size={24} className={selectedRepo === repo.name ? 'text-violet-400' : 'text-slate-500'} />
+                                            <FolderGit2 size={24} className={selectedRepo === repo.name ? 'text-primary' : 'text-muted-foreground'} />
                                             <div>
-                                                <h4 className="font-semibold text-slate-200">{repo.name}</h4>
-                                                <p className="text-xs text-slate-500">Updated 2 days ago • {repo.lang}</p>
+                                                <h4 className="font-semibold text-foreground">{repo.name}</h4>
+                                                <p className="text-xs text-muted-foreground">Updated 2 days ago • {repo.lang}</p>
                                             </div>
                                         </div>
-                                        {selectedRepo === repo.name && <Check size={20} className="text-violet-500" />}
+                                        {selectedRepo === repo.name && <Check size={20} className="text-primary" />}
                                     </div>
                                 ))}
                             </div>
@@ -116,7 +114,7 @@ const DeploymentDemo: React.FC = () => {
                                 <button
                                     disabled={!selectedRepo}
                                     onClick={next}
-                                    className="px-6 cursor-pointer py-2 bg-violet-600 disabled:opacity-50 text-white rounded-lg font-bold hover:bg-violet-700 transition-colors"
+                                    className="px-6 cursor-pointer py-2 bg-primary disabled:opacity-50 text-primary-foreground rounded-lg font-bold hover:opacity-90 transition-colors"
                                 >
                                     Import
                                 </button>
@@ -128,18 +126,18 @@ const DeploymentDemo: React.FC = () => {
                         <div className="w-full max-w-2xl animate-in fade-in slide-in-from-bottom-4 duration-500">
                             <div className="grid md:grid-cols-2 gap-8">
                                 <div className="space-y-6">
-                                    <h3 className="text-xl font-bold">Project Configuration</h3>
+                                    <h3 className="text-xl font-bold text-foreground">Project Configuration</h3>
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-400 mb-2">Build Command</label>
-                                        <input type="text" defaultValue="npm run build" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-violet-500/50" />
+                                        <label className="block text-sm font-medium text-muted-foreground mb-2">Build Command</label>
+                                        <input type="text" defaultValue="npm run build" className="w-full bg-background border border-border rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary/50 text-foreground" />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-400 mb-2">Output Directory</label>
-                                        <input type="text" defaultValue=".next" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-violet-500/50" />
+                                        <label className="block text-sm font-medium text-muted-foreground mb-2">Output Directory</label>
+                                        <input type="text" defaultValue=".next" className="w-full bg-background border border-border rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary/50 text-foreground" />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-400 mb-2">Package Manager</label>
-                                        <select className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-violet-500/50">
+                                        <label className="block text-sm font-medium text-muted-foreground mb-2">Package Manager</label>
+                                        <select className="w-full bg-background border border-border rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary/50 text-foreground">
                                             <option>pnpm</option>
                                             <option>npm</option>
                                             <option>yarn</option>
@@ -147,17 +145,17 @@ const DeploymentDemo: React.FC = () => {
                                     </div>
                                 </div>
                                 <div className="space-y-6">
-                                    <h3 className="text-xl font-bold">Environment Variables</h3>
-                                    <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700 border-dashed flex flex-col items-center justify-center h-[180px]">
-                                        <Settings className="text-slate-600 mb-2" />
-                                        <p className="text-xs text-slate-500 text-center">Paste your .env content or click to add key-value pairs</p>
-                                        <button className="mt-4 text-xs font-bold text-purple-400 hover:text-purple-300 cursor-pointer ">Add Variable</button>
+                                    <h3 className="text-xl font-bold text-foreground">Environment Variables</h3>
+                                    <div className="p-4 bg-secondary/50 rounded-xl border border-border border-dashed flex flex-col items-center justify-center h-[180px]">
+                                        <Settings className="text-muted-foreground mb-2" />
+                                        <p className="text-xs text-muted-foreground text-center">Paste your .env content or click to add key-value pairs</p>
+                                        <button className="mt-4 text-xs font-bold text-primary hover:opacity-80 cursor-pointer ">Add Variable</button>
                                     </div>
                                 </div>
                             </div>
                             <div className="mt-10 flex justify-between">
-                                <button onClick={prev} className="text-slate-400 hover:text-white cursor-pointer font-medium">Back</button>
-                                <button onClick={next} className="px-6 py-2 cursor-pointer bg-violet-600 text-white rounded-lg font-bold hover:bg-violet-700 transition-all shadow-lg shadow-violet-600/30">
+                                <button onClick={prev} className="text-muted-foreground hover:text-foreground cursor-pointer font-medium">Back</button>
+                                <button onClick={next} className="px-6 py-2 cursor-pointer bg-primary text-primary-foreground rounded-lg font-bold hover:opacity-90 transition-all">
                                     Deploy Now
                                 </button>
                             </div>
@@ -169,29 +167,29 @@ const DeploymentDemo: React.FC = () => {
                                 <div className="absolute inset-0 bg-green-500/20 rounded-full animate-ping"></div>
                                 <Rocket size={24} className="text-green-500" />
                             </div>
-                            <h3 className="text-2xl font-black">Your app is live!</h3>
-                            <p className="text-slate-400 text-sm">Congratulations! Your project is now being monitored and served globally.</p>
+                            <h3 className="text-2xl font-black text-foreground">Your app is live!</h3>
+                            <p className="text-muted-foreground text-sm">Congratulations! Your project is now being monitored and served globally.</p>
 
                             <div className="grid grid-cols-3 gap-4 mb-10 max-w-lg mx-auto">
-                                <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700">
-                                    <div className="text-2xl font-bold text-white">99.9%</div>
-                                    <div className="text-xs text-slate-500 uppercase font-bold tracking-widest mt-1">Uptime</div>
+                                <div className="p-4 bg-secondary/40 rounded-xl border border-border">
+                                    <div className="text-2xl font-bold text-foreground">99.9%</div>
+                                    <div className="text-xs text-muted-foreground uppercase font-bold tracking-widest mt-1">Uptime</div>
                                 </div>
-                                <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700">
-                                    <div className="text-2xl font-bold text-white">42ms</div>
-                                    <div className="text-xs text-slate-500 uppercase font-bold tracking-widest mt-1">Latency</div>
+                                <div className="p-4 bg-secondary/40 rounded-xl border border-border">
+                                    <div className="text-2xl font-bold text-foreground">42ms</div>
+                                    <div className="text-xs text-muted-foreground uppercase font-bold tracking-widest mt-1">Latency</div>
                                 </div>
-                                <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700">
-                                    <div className="text-2xl font-bold text-white">0</div>
-                                    <div className="text-xs text-slate-500 uppercase font-bold tracking-widest mt-1">Errors</div>
+                                <div className="p-4 bg-secondary/40 rounded-xl border border-border">
+                                    <div className="text-2xl font-bold text-foreground">0</div>
+                                    <div className="text-xs text-muted-foreground uppercase font-bold tracking-widest mt-1">Errors</div>
                                 </div>
                             </div>
 
                             <div className="flex gap-4 justify-center">
-                                <Button className="bg-violet-500 hover:bg-violet-700 text-white ransition-colors px-8 py-3">
+                                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground ransition-colors px-8 py-3">
                                     Visit Site
                                 </Button>
-                                <Button onClick={() => setActiveStep(0)} className="px-8 py-3 bg-transparent text-violet-500 border border-violet-500 transition-colors hover:bg-violet-700 hover:text-white hover:border-violet-700">
+                                <Button onClick={() => setActiveStep(0)} className="px-8 py-3 bg-transparent text-primary border border-primary transition-colors hover:bg-primary hover:text-primary-foreground hover:border-primary">
                                     Dashboard
                                 </Button>
                             </div>
