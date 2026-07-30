@@ -6,7 +6,7 @@ APP_TYPE=$2        # express, nest, next, react, static
 ENV_VARS=$3        # Optional: .env content string (exclude PORT)
 
 # Constants
-MY_DOMAIN="stacktest.space"
+DOMAIN=${4:-"stacktest.space"}
 BASE_DIR="/var/www/$PROJECT_NAME"
 EMAIL="ahmedjaafarbadri@gmail.com"
 
@@ -29,13 +29,13 @@ get_free_port() {
 # 1. Initialization & App Logic
 if [[ "$APP_TYPE" == "express" || "$APP_TYPE" == "nest" || "$APP_TYPE" == "next" ]]; then
     IS_SERVER=true
-    FULL_DOMAIN="api.${PROJECT_NAME}.${MY_DOMAIN}"
+    FULL_DOMAIN="api.${PROJECT_NAME}.${DOMAIN}"
     # AUTOMATIC PORT ASSIGNMENT
     PORT=$(get_free_port)
     echo "🎯 Auto-assigned Port: $PORT"
 else
     IS_SERVER=false
-    FULL_DOMAIN="${PROJECT_NAME}.${MY_DOMAIN}"
+    FULL_DOMAIN="${PROJECT_NAME}.${DOMAIN}"
 fi
 
 PM2_NAME="api.${PROJECT_NAME}"

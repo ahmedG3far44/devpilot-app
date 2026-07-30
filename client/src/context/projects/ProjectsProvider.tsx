@@ -120,6 +120,10 @@ const ProjectsProvider: FC<PropsWithChildren> = ({ children }) => {
       });
       const results = await response.json();
 
+      if (!results.success) {
+        throw new Error(results.error || "Failed to delete project");
+      }
+
       console.log(results.data);
     } catch (err) {
       setError((err as Error).message);
@@ -128,6 +132,7 @@ const ProjectsProvider: FC<PropsWithChildren> = ({ children }) => {
         (err as Error).message,
         (err as Error).stack
       );
+      throw err;
     } finally {
       setDeleting(false);
     }

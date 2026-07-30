@@ -269,7 +269,6 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ onActionClick }) => {
                   <TableHead className="w-[250px]">Project Name</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Port</TableHead>
                   <TableHead>Tech</TableHead>
                   <TableHead>URL</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -314,13 +313,6 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ onActionClick }) => {
                       {/* Status Badge */}
                       <TableCell>{getStatusBadge(project.status)}</TableCell>
 
-                      {/* Port Number */}
-                      <TableCell className="font-mono text-sm">
-                        {project.type === "express" || project.type === "nest"
-                          ? project.port
-                          : "N/A"}
-                      </TableCell>
-
                       {/* Technology Indicators */}
                       <TableCell>
                         <div className="flex gap-2">
@@ -333,17 +325,21 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ onActionClick }) => {
                       </TableCell>
 
                       <TableCell>
-                        <a
-                          href={project?.production_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-                        >
-                          <span className="text-sm truncate max-w-[150px]">
-                            {project?.production_url?.replace(/https?:\/\//, "")}
-                          </span>
-                          <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                        </a>
+                        {project.status === "active" ? (
+                          <a
+                            href={project?.production_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                          >
+                            <span className="text-sm truncate max-w-[150px]">
+                              {project?.production_url?.replace(/https?:\/\//, "")}
+                            </span>
+                            <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                          </a>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">—</span>
+                        )}
                       </TableCell>
 
                       {/* Actions Dropdown */}
@@ -364,13 +360,15 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ onActionClick }) => {
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuSeparator />
 
-                            <DropdownMenuItem
-                              onClick={() => window.open(project?.production_url, "_blank")}
-                              className="cursor-pointer"
-                            >
-                              <ExternalLink className="mr-2 h-4 w-4" />
-                              View Live
-                            </DropdownMenuItem>
+                            {project.status === "active" && (
+                              <DropdownMenuItem
+                                onClick={() => window.open(project?.production_url, "_blank")}
+                                className="cursor-pointer"
+                              >
+                                <ExternalLink className="mr-2 h-4 w-4" />
+                                View Live
+                              </DropdownMenuItem>
+                            )}
 
                             <DropdownMenuItem
                               onClick={() =>

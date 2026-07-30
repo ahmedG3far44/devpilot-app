@@ -257,15 +257,26 @@ export interface Deployment {
     _id: string;
     project_name: string;
     version: string;
+    status: DeploymentStatus;
     createdAt: string;
     updatedAt: string;
     last_commit: LastCommit;
+}
+
+export interface DeploymentResult {
+    status: "success" | "error";
+    projectId?: string;
+    url?: string;
+    error_step?: string;
+    message?: string;
 }
 
 export interface DeploymentLogsProps {
     logs: string[];
     isDeploying: boolean;
     projectName?: string;
+    result?: DeploymentResult | null;
+    onReset?: () => void;
 }
 
 // ============================================================================
@@ -328,6 +339,8 @@ export interface DeployContextType {
     isDeploying: boolean;
     error: string | null;
     handleDeploy: (data: DeployBodyType) => Promise<void>;
+    deploymentResult: DeploymentResult | null;
+    resetDeploy: () => void;
 }
 
 // ============================================================================

@@ -2,24 +2,22 @@ import { Client } from "ssh2";
 
 import env from "./env";
 
-
-const host = env.EC2_HOST;
+const host = env.EC2_HOST_IP;
 const username = env.EC2_USER;
-const password = env.EC2_SSH_PASSWORD;
-const port = parseInt(env.EC2_SSH_PORT) || 22;
-
+const privateKey = env.EC2_SSH_KEY;
+const port = env.EC2_SSH_PORT;
 
 export const streamRemoteCommand = (
   command: string,
   onData: (chunk: string) => void,
-  onClose: (closeMessage:string) => void,
-  onError?: (err: Error) => void
+  onClose: (closeMessage: string) => void,
+  onError?: (err: Error) => void,
 ) => {
   const conn = new Client();
 
   conn
     .on("ready", () => {
-        onData("Connecting Server is ready....")
+      onData("Connecting Server is ready....");
       conn.exec(command, (err, stream) => {
         if (err) {
           onError?.(err);
@@ -29,7 +27,9 @@ export const streamRemoteCommand = (
 
         stream
           .on("data", (chunk: Buffer) => onData(chunk.toString()))
-          .stderr.on("data", (chunk: Buffer) => onData(`[stderr] ${chunk.toString()}`));
+          .stderr.on("data", (chunk: Buffer) =>
+            onData(`[stderr] ${chunk.toString()}`),
+          );
 
         stream.on("close", () => {
           onClose("Connection clonse");
@@ -43,7 +43,7 @@ export const streamRemoteCommand = (
     .connect({
       host,
       username,
-      password,
-      port,
+      privateKey,
+      port: Number(port),
     });
 };

@@ -18,8 +18,15 @@ import {
 } from "lucide-react";
 
 import DeploymentLogs from "./DeploymentLogs";
-import ErrorMessage from "./ui/error";
-import type { DeployBodyType, IEnvironment, PackageManager, ProjectData, ProjectFormData, ProjectType, ProjectTypeConfig } from "@/types";
+import type {
+  DeployBodyType,
+  IEnvironment,
+  PackageManager,
+  ProjectData,
+  ProjectFormData,
+  ProjectType,
+  ProjectTypeConfig,
+} from "@/types";
 
 export const PACKAGE_MANAGERS: PackageManager[] = [
   {
@@ -108,13 +115,20 @@ export const PROJECT_TYPES: ProjectTypeConfig[] = [
 const BASE_URL = import.meta.env.VITE_BASE_URL as string;
 
 const DeploymentProjectForm = () => {
-
   const { repos } = useAuth();
   const { repoName } = useParams();
-  const { handleDeploy, isDeploying, logs, error } = useDeploy();
+  const {
+    handleDeploy,
+    isDeploying,
+    logs,
+    deploymentResult,
+    resetDeploy,
+  } = useDeploy();
 
   const [projects, setProjectsList] = useState<ProjectData[]>([]);
-  const [envInputMode, setEnvInputMode] = useState<"individual" | "bulk">("individual");
+  const [envInputMode, setEnvInputMode] = useState<"individual" | "bulk">(
+    "individual",
+  );
   const [bulkEnvText, setBulkEnvText] = useState("");
   const [bulkEnvError, setBulkEnvError] = useState("");
 
@@ -130,45 +144,33 @@ const DeploymentProjectForm = () => {
       console.log(
         (err as Error).name,
         (err as Error).message,
-        (err as Error).stack
+        (err as Error).stack,
       );
     }
   };
 
-  useEffect(() => {
-    getProjectsList();
-  }, []);
-
-
   const deployedBefore = projects.find(
     (project) =>
-      project.name.toLowerCase().trim() === repoName?.toLocaleLowerCase().trim()
+      project.name.toLowerCase().trim() ===
+      repoName?.toLocaleLowerCase().trim(),
   );
-  // const numberOfServerProjects = projects.filter(
-  //   (project) =>
-  //     project.type === "express" ||
-  //     project.type === "next" ||
-  //     project.type === "nest"
-  // );
 
   const deployedProject = repos?.find(
     (repo) =>
-      repo.name.toLowerCase().trim() === repoName?.toLocaleLowerCase().trim()
+      repo.name.toLowerCase().trim() === repoName?.toLocaleLowerCase().trim(),
   );
 
-
   const getAvailablePortNumber = (deployedProjects: ProjectData[]) => {
-    const totalProjects = deployedProjects.length
+    const totalProjects = deployedProjects.length;
     return 4000 + totalProjects + 1;
-  }
+  };
 
-
-  const [formData, setFormData] = useState<ProjectFormData>({
-    name: deployedProject?.name as string,
-    description: deployedProject?.description as string,
-    clone_url: deployedProject?.clone_url as string,
-    branch: deployedProject?.default_branch as string,
-    port: getAvailablePortNumber(projects as ProjectData[]),
+  const initialFormData = (): ProjectFormData => ({
+    name: deployedProject?.name ?? "",
+    description: deployedProject?.description ?? "",
+    clone_url: deployedProject?.clone_url ?? "",
+    branch: deployedProject?.default_branch ?? "",
+    port: getAvailablePortNumber(projects),
     typescript: false,
     type: "react",
     build_script: "npm run build",
@@ -176,25 +178,34 @@ const DeploymentProjectForm = () => {
     run_script: "npm start",
     main_dir: "./",
     is_deployed: false,
-    environments: []
+    environments: [],
   });
 
+  const [formData, setFormData] = useState<ProjectFormData>(initialFormData);
+
+  useEffect(() => {
+    resetDeploy();
+    setErrors({});
+    setBulkEnvText("");
+    setBulkEnvError("");
+    setEnvInputMode("individual");
+    setFormData(initialFormData());
+    getProjectsList();
+  }, [repoName]);
+
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isSubmitted, setIsSubmitted] = useState(false);
 
   const currentProjectType = PROJECT_TYPES.find(
-    (pt) => pt.value === formData.type
+    (pt) => pt.value === formData.type,
   )!;
 
   useEffect(() => {
     const pm = PACKAGE_MANAGERS.find(
-      (p) => p.value === formData.package_manager
+      (p) => p.value === formData.package_manager,
     );
     if (!pm) return;
 
-    const projectType = PROJECT_TYPES.find(
-      (pt) => pt.value === formData.type
-    );
+    const projectType = PROJECT_TYPES.find((pt) => pt.value === formData.type);
     if (!projectType) return;
 
     const runScript = projectType.requiresRunScript
@@ -203,7 +214,9 @@ const DeploymentProjectForm = () => {
         : pm.runCmd
       : "npm start";
 
-    const buildScript = projectType.requiresBuildScript ? pm.buildCmd : "npm run build";
+    const buildScript = projectType.requiresBuildScript
+      ? pm.buildCmd
+      : "npm run build";
 
     setFormData((prev) => ({
       ...prev,
@@ -214,7 +227,7 @@ const DeploymentProjectForm = () => {
 
   const handleInputChange = (
     field: keyof ProjectFormData,
-    value: string | ProjectType | boolean
+    value: string | ProjectType | boolean,
   ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
@@ -250,12 +263,12 @@ const DeploymentProjectForm = () => {
   const updateEnvVar = (
     id: string,
     field: keyof IEnvironment,
-    value: string | boolean
+    value: string | boolean,
   ) => {
     setFormData((prev) => ({
       ...prev,
       environments: prev.environments.map((env) =>
-        env.id === id ? { ...env, [field]: value } : env
+        env.id === id ? { ...env, [field]: value } : env,
       ),
     }));
   };
@@ -271,7 +284,7 @@ const DeploymentProjectForm = () => {
     setFormData((prev) => ({
       ...prev,
       environments: prev.environments.map((env) =>
-        env.id === id ? { ...env, isVisible: !env.isVisible } : env
+        env.id === id ? { ...env, isVisible: !env.isVisible } : env,
       ),
     }));
   };
@@ -281,7 +294,7 @@ const DeploymentProjectForm = () => {
   };
 
   const parseBulkEnv = (text: string): IEnvironment[] => {
-    const lines = text.split('\n');
+    const lines = text.split("\n");
     const parsedEnvs: IEnvironment[] = [];
     const errors: string[] = [];
 
@@ -289,12 +302,12 @@ const DeploymentProjectForm = () => {
       const trimmedLine = line.trim();
 
       // Skip empty lines and comments
-      if (!trimmedLine || trimmedLine.startsWith('#')) {
+      if (!trimmedLine || trimmedLine.startsWith("#")) {
         return;
       }
 
       // Find the first = sign
-      const equalIndex = trimmedLine.indexOf('=');
+      const equalIndex = trimmedLine.indexOf("=");
 
       if (equalIndex === -1) {
         errors.push(`Line ${index + 1}: Missing '=' separator`);
@@ -305,13 +318,15 @@ const DeploymentProjectForm = () => {
       let value = trimmedLine.substring(equalIndex + 1).trim();
 
       // Remove export keyword if present
-      if (key.startsWith('export ')) {
+      if (key.startsWith("export ")) {
         key = key.substring(7).trim();
       }
 
       // Handle quoted values
-      if ((value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))) {
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
         value = value.substring(1, value.length - 1);
       }
 
@@ -334,7 +349,7 @@ const DeploymentProjectForm = () => {
     });
 
     if (errors.length > 0) {
-      setBulkEnvError(errors.join('\n'));
+      setBulkEnvError(errors.join("\n"));
       return [];
     }
 
@@ -363,8 +378,8 @@ const DeploymentProjectForm = () => {
   const switchToIndividualMode = () => {
     // Convert current environments to bulk text for preservation
     const bulkText = formData.environments
-      .map(env => `${env.key}=${env.value}`)
-      .join('\n');
+      .map((env) => `${env.key}=${env.value}`)
+      .join("\n");
     setBulkEnvText(bulkText);
     setEnvInputMode("individual");
   };
@@ -372,8 +387,8 @@ const DeploymentProjectForm = () => {
   const switchToBulkMode = () => {
     // Convert current environments to bulk text
     const bulkText = formData.environments
-      .map(env => `${env.key}=${env.value}`)
-      .join('\n');
+      .map((env) => `${env.key}=${env.value}`)
+      .join("\n");
     setBulkEnvText(bulkText);
     setEnvInputMode("bulk");
   };
@@ -431,59 +446,50 @@ const DeploymentProjectForm = () => {
 
     if (!validateForm()) return;
 
+    if (!deployedProject) {
+      throw new Error("Repository not found.");
+    }
+
     try {
       const deployPayload: DeployBodyType = {
-        name: deployedProject?.name.toLowerCase().trim() as string,
-        repo: deployedProject?.clone_url.toLowerCase().trim() as string,
-        type: formData.type.toLowerCase().trim() as string,
-        branch: formData.branch.toLowerCase().trim() as string,
+        name: (formData.name || deployedProject?.name || "").toLowerCase().trim(),
+        repo: (formData.clone_url || deployedProject?.clone_url || "").toLowerCase().trim(),
+        type: formData.type.toLowerCase().trim(),
+        branch: (formData.branch || deployedProject?.default_branch || "").toLowerCase().trim(),
         typescript: formData.typescript,
-        run_script: formData.run_script.toLowerCase().trim() as string,
-        build_script: formData.build_script.toLowerCase().trim() as string,
+        run_script: formData.run_script.toLowerCase().trim(),
+        build_script: formData.build_script.toLowerCase().trim(),
         port: getAvailablePortNumber(projects as ProjectData[]),
         main_dir: formData.main_dir.toLowerCase().trim(),
         package_manager: formData.package_manager.toLowerCase().trim(),
         environments: formData.environments,
       };
 
+      console.log(deployPayload);
 
-      await handleDeploy(deployPayload).then(() => {
-        setIsSubmitted(true);
-      }).catch(() => {
-        setIsSubmitted(false);
-      });
-
+      await handleDeploy(deployPayload);
     } catch (error) {
-      console.error("Deployment error:", error);
-      setErrors({ submit: "Failed to deploy project. Please try again." });
+      setErrors({
+        submit:
+          "Failed to deploy project. Please try again." +
+          (error as Error).message,
+      });
     }
   };
 
+  if (!repoName) return <Navigate to={"/"} />;
 
-  if (!repoName) return <Navigate to={"/"} />
+  if (deployedBefore)
+    return <Navigate to={`/deployments/${deployedBefore._id}`} />;
 
-  if (deployedBefore) return <Navigate to={`/deployments/${deployedBefore._id}`} />;
+  // if (isSubmitted) return (<Navigate to={`/success`} />)
 
-
-
-  if (isDeploying)
-    return (
-      <DeploymentLogs
-        logs={logs}
-        isDeploying={isDeploying}
-        projectName={deployedProject?.name as string}
-      />
-    );
-
-  if (isSubmitted) return (<Navigate to={`/success`} />)
-
-  if (error) return <ErrorMessage message={error} />
-
+  // if (error) return <ErrorMessage message={error} />;
 
   return (
-    <div className="min-h-screen py-4 sm:py-6 lg:py-12 px-3 sm:px-4 lg:px-6">
-      <div className="max-w-5xl mx-auto">
-        <div className=" rounded-xl shadow-lg p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen py-4 sm:py-6 lg:py-12 px-3 sm:px-4 lg:px-6 ">
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div className=" rounded-xl ">
           <div className="mb-6 sm:mb-8">
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold  mb-2">
               Deploy New Project
@@ -492,7 +498,6 @@ const DeploymentProjectForm = () => {
               Configure your deployment settings
             </p>
           </div>
-
 
           {errors.submit && (
             <div className="mb-6 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
@@ -505,42 +510,35 @@ const DeploymentProjectForm = () => {
               </span>
             </div>
           )}
-          <div className="mb-6  p-4 sm:p-5 rounded-lg border border-muted text-primary ">
-            <h2 className="text-base sm:text-lg font-semibold  mb-4 flex items-center gap-2">
-              <Info size={18} className="flex-shrink-0" />
-              Repository Information
+          <div className="mb-6 p-4 rounded-lg border border-muted">
+            <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <Info size={16} className="flex-shrink-0" />
+              Repository
             </h2>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs sm:text-sm font-medium  mb-1">
-                  Project Name
-                </label>
-                <p className="text-sm sm:text-base  font-medium break-words">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="min-w-0">
+                <label className="block text-xs text-muted-foreground mb-0.5">Name</label>
+                <p className="text-sm font-medium truncate">
                   {deployedProject?.name as string}
                 </p>
               </div>
-              <div>
-                <label htmlFor="branch" className="block text-xs sm:text-sm font-medium  mb-1">
-                  Default Branch
-                </label>
-                <span className="text-xs sm:text-sm  font-medium break-words flex items-center gap-2">
-                  <LucideGitBranch size={12} />  {deployedProject?.default_branch as string}
-                </span>
+              <div className="min-w-0">
+                <label className="block text-xs text-muted-foreground mb-0.5">Branch</label>
+                <p className="text-sm font-medium flex items-center gap-1">
+                  <LucideGitBranch size={12} className="flex-shrink-0" />
+                  <span className="truncate">{deployedProject?.default_branch as string}</span>
+                </p>
               </div>
-              <div>
-                <label className="block text-xs sm:text-sm font-medium  mb-1">
-                  Clone URL
-                </label>
-                <p className="text-xs sm:text-sm  font-mono break-all">
+              <div className="min-w-0 sm:col-span-1">
+                <label className="block text-xs text-muted-foreground mb-0.5">Clone URL</label>
+                <p className="text-xs font-mono truncate">
                   {deployedProject?.clone_url as string}
                 </p>
               </div>
               {deployedProject?.description && (
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium  mb-1">
-                    Description
-                  </label>
-                  <p className="text-sm sm:text-base  break-words">
+                <div className="sm:col-span-3 min-w-0">
+                  <label className="block text-xs text-muted-foreground mb-0.5">Description</label>
+                  <p className="text-sm truncate">
                     {deployedProject?.description as string}
                   </p>
                 </div>
@@ -548,7 +546,7 @@ const DeploymentProjectForm = () => {
             </div>
           </div>
 
-          <div className="space-y-5 sm:space-y-6">
+          <div className="space-y-6 pt-4 border-t border-muted">
             <div>
               <label className="block text-sm sm:text-base font-semibold  mb-3">
                 Project Type <span className="text-red-500">*</span>
@@ -557,19 +555,25 @@ const DeploymentProjectForm = () => {
                 {PROJECT_TYPES.map((type) => (
                   <Button
                     key={type.value}
+                    disabled={isDeploying}
                     onClick={() => handleInputChange("type", type.value)}
-                    className={`p-3 h-[100px] sm:p-4 rounded-lg border-2 text-left transition-all flex items-center justify-center flex-col ${formData.type === type.value
-                      ? "border-blue-500 bg-card shadow-md text-primary duration-300 hover:bg-muted cursor-pointer"
-                      : " hover:bg-muted cursor-pointer duration-300  hover:shadow-sm text-primary bg-card"
-                      }`}
+                    className={`p-3 h-[100px] sm:p-4 rounded-lg border-2 text-left transition-all flex items-center justify-center flex-col ${
+                      formData.type === type.value
+                        ? "border-blue-500 bg-card shadow-md text-primary duration-300 hover:bg-muted"
+                        : " hover:bg-muted duration-300  hover:shadow-sm text-primary bg-card"
+                    } ${isDeploying ? "opacity-50 pointer-events-none" : "cursor-pointer"}`}
                   >
                     <div className="flex justify-center items-center gap-2 font-semibold text-sm sm:text-base ">
-                      {type.value === "next" ? <ThemeImage size={20} /> : <img
-                        src={type.image}
-                        width={20}
-                        height={20}
-                        alt={type.value}
-                      />}
+                      {type.value === "next" ? (
+                        <ThemeImage size={20} />
+                      ) : (
+                        <img
+                          src={type.image}
+                          width={20}
+                          height={20}
+                          alt={type.value}
+                        />
+                      )}
                       <span>{type.label}</span>
                     </div>
                     <div className="text-xs sm:text-sm  mt-1 leading-snug">
@@ -580,17 +584,18 @@ const DeploymentProjectForm = () => {
               </div>
             </div>
             {formData.type !== "static" && (
-              <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm sm:text-base font-semibold  mb-2">
+                  <label className="block text-sm sm:text-base font-semibold mb-2">
                     Package Manager <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={formData.package_manager}
+                    disabled={isDeploying}
                     onChange={(e) =>
                       handleInputChange("package_manager", e.target.value)
                     }
-                    className="w-full px-3 sm:px-4 py-2 appearance-none rounded-lg bg-card border border-muted hover:bg-card transition  text-sm sm:text-base cursor-pointer"
+                    className={`w-full px-3 sm:px-4 py-2 appearance-none rounded-lg bg-card border border-muted transition text-sm sm:text-base ${isDeploying ? "opacity-50 cursor-not-allowed" : "hover:bg-card cursor-pointer"}`}
                   >
                     {PACKAGE_MANAGERS.map((pm) => (
                       <option
@@ -604,76 +609,85 @@ const DeploymentProjectForm = () => {
                   </select>
                 </div>
 
-                <div className="flex items-center gap-3 p-3 sm:p-4 rounded-lg border ">
+                <div className="flex items-center gap-3 p-3 sm:p-4 rounded-lg border self-end">
                   <input
                     type="checkbox"
                     id="typescript"
+                    disabled={isDeploying}
                     checked={formData.typescript}
                     onChange={(e) =>
                       handleInputChange("typescript", e.target.checked)
                     }
-                    className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    className={`w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-2 focus:ring-blue-500 ${isDeploying ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                   />
                   <label
                     htmlFor="typescript"
-                    className="text-sm sm:text-base font-medium text-muted-foreground  cursor-pointer select-none"
+                    className="text-sm sm:text-base font-medium text-muted-foreground cursor-pointer select-none"
                   >
                     This project uses TypeScript
                   </label>
                 </div>
-              </>
-            )}
-
-            {(currentProjectType.requiresBuildScript || formData.typescript) && (
-              <div>
-                <label className="block text-sm sm:text-base font-semibold  mb-2">
-                  Build Script <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.build_script}
-                  onChange={(e) =>
-                    handleInputChange("build_script", e.target.value)
-                  }
-                  className={`w-full px-3 sm:px-4 py-2.5 rounded-lg border text-sm sm:text-base ${errors.build_script
-                    ? "border-red-300 bg-card"
-                    : "border-muted"
-                    } focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition`}
-                  placeholder="npm run build"
-                />
-                {errors.build_script && (
-                  <p className="mt-1.5 text-xs sm:text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle size={14} className="flex-shrink-0" />
-                    {errors.build_script}
-                  </p>
-                )}
               </div>
             )}
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {(currentProjectType.requiresBuildScript ||
+                formData.typescript) && (
+                <div>
+                  <label className="block text-sm sm:text-base font-semibold mb-2">
+                    Build Script <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.build_script}
+                    readOnly={isDeploying}
+                    onChange={(e) =>
+                      handleInputChange("build_script", e.target.value)
+                    }
+                    className={`w-full px-3 sm:px-4 py-2.5 rounded-lg border text-sm sm:text-base ${
+                      errors.build_script
+                        ? "border-red-300 bg-card"
+                        : "border-muted"
+                    } ${isDeploying ? "opacity-50" : ""} focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition`}
+                    placeholder="npm run build"
+                  />
+                  {errors.build_script && (
+                    <p className="mt-1.5 text-xs sm:text-sm text-red-600 flex items-center gap-1">
+                      <AlertCircle size={14} className="flex-shrink-0" />
+                      {errors.build_script}
+                    </p>
+                  )}
+                </div>
+              )}
 
-            {currentProjectType.requiresRunScript && (
-              <div>
-                <label className="block text-sm sm:text-base font-semibold  mb-2">
-                  Run Script <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.run_script}
-                  onChange={(e) =>
-                    handleInputChange("run_script", e.target.value)
-                  }
-                  className={`w-full px-3 sm:px-4 py-2.5 rounded-lg border text-sm sm:text-base ${errors.run_script ? "border-red-300 bg-card" : "border-muted"
-                    } focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition`}
-                  placeholder="npm start"
-                />
-                {errors.runScript && (
-                  <p className="mt-1.5 text-xs sm:text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle size={14} className="flex-shrink-0" />
-                    {errors.runScript}
-                  </p>
-                )}
-              </div>
-            )}
+              {currentProjectType.requiresRunScript && (
+                <div>
+                  <label className="block text-sm sm:text-base font-semibold mb-2">
+                    Run Script <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.run_script}
+                    readOnly={isDeploying}
+                    onChange={(e) =>
+                      handleInputChange("run_script", e.target.value)
+                    }
+                    className={`w-full px-3 sm:px-4 py-2.5 rounded-lg border text-sm sm:text-base ${
+                      errors.run_script
+                        ? "border-red-300 bg-card"
+                        : "border-muted"
+                    } ${isDeploying ? "opacity-50" : ""} focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition`}
+                    placeholder="npm start"
+                  />
+                  {errors.runScript && (
+                    <p className="mt-1.5 text-xs sm:text-sm text-red-600 flex items-center gap-1">
+                      <AlertCircle size={14} className="flex-shrink-0" />
+                      {errors.runScript}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
 
             <div>
               <label className="block text-sm sm:text-base font-semibold  mb-2">
@@ -682,17 +696,30 @@ const DeploymentProjectForm = () => {
               <input
                 type="text"
                 value={formData.main_dir}
-                onChange={(e) =>
-                  handleInputChange("main_dir", e.target.value)
-                }
-                className={`w-full px-3 sm:px-4 py-2.5 rounded-lg border text-sm sm:text-base ${errors.main_dir
-                  ? "border-red-300 bg-card"
-                  : "border-muted"
-                  } focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition`}
+                readOnly={isDeploying}
+                onChange={(e) => handleInputChange("main_dir", e.target.value)}
+                className={`w-full px-3 sm:px-4 py-2.5 rounded-lg border text-sm sm:text-base ${
+                  errors.main_dir ? "border-red-300 bg-card" : "border-muted"
+                } ${isDeploying ? "opacity-50" : ""} focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition`}
                 placeholder="./"
               />
               <p className="mt-1.5 text-xs sm:text-sm ">
-                Root directory of your project example ( <span className="font-semibold text-blue-500 mx-1">./</span>  <span className="font-semibold text-blue-500 mx-1">./server</span>  <span className="font-semibold text-blue-500 mx-1">./client</span>  <span className="font-semibold text-blue-500 mx-1">./frontend</span>  <span className="font-semibold text-blue-500 mx-1">./backend</span>  <span className="font-semibold text-blue-500 mx-1">./app</span>  etc...)
+                Root directory of your project example ({" "}
+                <span className="font-semibold text-blue-500 mx-1">./</span>{" "}
+                <span className="font-semibold text-blue-500 mx-1">
+                  ./server
+                </span>{" "}
+                <span className="font-semibold text-blue-500 mx-1">
+                  ./client
+                </span>{" "}
+                <span className="font-semibold text-blue-500 mx-1">
+                  ./frontend
+                </span>{" "}
+                <span className="font-semibold text-blue-500 mx-1">
+                  ./backend
+                </span>{" "}
+                <span className="font-semibold text-blue-500 mx-1">./app</span>{" "}
+                etc...)
               </p>
               {errors.main_dir && (
                 <p className="mt-1.5 text-xs sm:text-sm text-red-600 flex items-center gap-1">
@@ -710,9 +737,14 @@ const DeploymentProjectForm = () => {
                 </label>
                 <div className="flex gap-2">
                   <Button
-                    onClick={() => envInputMode === "individual" ? switchToBulkMode() : switchToIndividualMode()}
+                    disabled={isDeploying}
+                    onClick={() =>
+                      envInputMode === "individual"
+                        ? switchToBulkMode()
+                        : switchToIndividualMode()
+                    }
                     variant={"outline"}
-                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition border hover:opacity-65 duration-300 cursor-pointer"
+                    className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition border hover:opacity-65 duration-300 ${isDeploying ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                   >
                     {envInputMode === "individual" ? (
                       <>
@@ -729,12 +761,13 @@ const DeploymentProjectForm = () => {
                   {envInputMode === "individual" && (
                     <Button
                       onClick={addEnvVar}
-                      disabled={!canAddEnvVar()}
+                      disabled={!canAddEnvVar() || isDeploying}
                       variant={"default"}
-                      className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition ${canAddEnvVar()
-                        ? " border hover:opacity-65 duration-300 cursor-pointer"
-                        : "  border  cursor-not-allowed"
-                        }`}
+                      className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition ${
+                        canAddEnvVar() && !isDeploying
+                          ? " border hover:opacity-65 duration-300 cursor-pointer"
+                          : "  border  cursor-not-allowed"
+                      }`}
                       title={
                         !canAddEnvVar()
                           ? "Fill in the current environment variable before adding a new one"
@@ -753,8 +786,9 @@ const DeploymentProjectForm = () => {
                   <div>
                     <textarea
                       value={bulkEnvText}
+                      readOnly={isDeploying}
                       onChange={(e) => handleBulkEnvChange(e.target.value)}
-                      className="w-full px-3 sm:px-4 py-2.5 rounded-lg border border-muted focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition text-sm sm:text-base font-mono min-h-[200px]"
+                      className={`w-full px-3 sm:px-4 py-2.5 rounded-lg border border-muted focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition text-sm sm:text-base font-mono min-h-[200px] ${isDeploying ? "opacity-50" : ""}`}
                       placeholder={`Paste your environment variables here:
 
 API_KEY=your_api_key_here
@@ -766,14 +800,19 @@ PORT=3000
 export NEXT_PUBLIC_API_URL="https://api.example.com"`}
                     />
                     <p className="mt-1.5 text-xs sm:text-sm text-muted-foreground">
-                      Paste your .env file content. Each line should be in KEY=value format. Comments (#) and empty lines are ignored.
+                      Paste your .env file content. Each line should be in
+                      KEY=value format. Comments (#) and empty lines are
+                      ignored.
                     </p>
                   </div>
 
                   {bulkEnvError && (
                     <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                       <p className="text-xs sm:text-sm text-red-600 whitespace-pre-line flex items-start gap-2">
-                        <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
+                        <AlertCircle
+                          size={14}
+                          className="flex-shrink-0 mt-0.5"
+                        />
                         <span>{bulkEnvError}</span>
                       </p>
                     </div>
@@ -781,8 +820,9 @@ export NEXT_PUBLIC_API_URL="https://api.example.com"`}
 
                   <Button
                     onClick={applyBulkEnv}
+                    disabled={isDeploying}
                     variant={"default"}
-                    className="w-full sm:w-auto px-4 py-2 text-sm font-medium rounded-lg transition border hover:opacity-65 duration-300 cursor-pointer"
+                    className={`w-full sm:w-auto px-4 py-2 text-sm font-medium rounded-lg transition border hover:opacity-65 duration-300 ${isDeploying ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                   >
                     Parse & Apply Variables
                   </Button>
@@ -790,7 +830,8 @@ export NEXT_PUBLIC_API_URL="https://api.example.com"`}
                   {formData.environments.length > 0 && (
                     <div className="mt-4 p-3 bg-card border border-muted rounded-lg">
                       <p className="text-xs sm:text-sm font-medium mb-2">
-                        Currently loaded: {formData.environments.length} variable(s)
+                        Currently loaded: {formData.environments.length}{" "}
+                        variable(s)
                       </p>
                       <div className="text-xs sm:text-sm text-muted-foreground space-y-1">
                         {formData.environments.map((env) => (
@@ -821,26 +862,29 @@ export NEXT_PUBLIC_API_URL="https://api.example.com"`}
                             <input
                               type="text"
                               value={env.key}
+                              readOnly={isDeploying}
                               onChange={(e) =>
                                 updateEnvVar(env.id, "key", e.target.value)
                               }
-                              className="flex-1 px-3 sm:px-4 py-2.5 rounded-lg border  focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition text-sm sm:text-base font-mono border-muted"
+                              className={`flex-1 px-3 sm:px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition text-sm sm:text-base font-mono border-muted ${isDeploying ? "opacity-50" : ""}`}
                               placeholder="KEY"
                             />
                             <div className="flex-1 relative">
                               <input
                                 type={env.isVisible ? "text" : "password"}
                                 value={env.value}
+                                readOnly={isDeploying}
                                 onChange={(e) =>
                                   updateEnvVar(env.id, "value", e.target.value)
                                 }
-                                className="w-full px-3 sm:px-4 py-2.5 pr-10 rounded-lg border  border-muted focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition text-sm sm:text-base font-mono"
+                                className={`w-full px-3 sm:px-4 py-2.5 pr-10 rounded-lg border border-muted focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition text-sm sm:text-base font-mono ${isDeploying ? "opacity-50" : ""}`}
                                 placeholder="value"
                               />
                               <Button
+                                disabled={isDeploying}
                                 onClick={() => toggleEnvVisibility(env.id)}
                                 variant={"outline"}
-                                className="border border-muted absolute right-2 top-1/2 -translate-y-1/2 p-1.5  hover:opacity-65 transition duration-300 "
+                                className={`border border-muted absolute right-2 top-1/2 -translate-y-1/2 p-1.5 transition duration-300 ${isDeploying ? "opacity-50" : "hover:opacity-65"}`}
                                 aria-label={
                                   env.isVisible ? "Hide value" : "Show value"
                                 }
@@ -854,8 +898,9 @@ export NEXT_PUBLIC_API_URL="https://api.example.com"`}
                             </div>
                             <Button
                               onClick={() => removeEnvVar(env.id)}
+                              disabled={isDeploying}
                               variant={"destructive"}
-                              className="text-sm"
+                              className={`text-sm ${isDeploying ? "opacity-50" : ""}`}
                               title="Remove variable"
                               aria-label="Remove environment variable"
                             >
@@ -864,7 +909,10 @@ export NEXT_PUBLIC_API_URL="https://api.example.com"`}
                           </div>
                           {errors[`envKey_${index}`] && (
                             <p className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1">
-                              <AlertCircle size={12} className="flex-shrink-0" />
+                              <AlertCircle
+                                size={12}
+                                className="flex-shrink-0"
+                              />
                               {errors[`envKey_${index}`]}
                             </p>
                           )}
@@ -876,7 +924,8 @@ export NEXT_PUBLIC_API_URL="https://api.example.com"`}
                   {formData.environments.length > 0 && !canAddEnvVar() && (
                     <p className="mt-2 text-xs sm:text-sm text-amber-600 flex items-center gap-1 bg-card my-2 p-3 rounded-lg border border-amber-200">
                       <AlertCircle size={14} className="flex-shrink-0" />
-                      Fill in both key and value to add another environment variable
+                      Fill in both key and value to add another environment
+                      variable
                     </p>
                   )}
                 </>
@@ -901,6 +950,14 @@ export NEXT_PUBLIC_API_URL="https://api.example.com"`}
             </div>
           </div>
         </div>
+
+        <DeploymentLogs
+          logs={logs}
+          isDeploying={isDeploying}
+          projectName={deployedProject?.name as string}
+          result={deploymentResult}
+          onReset={resetDeploy}
+        />
       </div>
     </div>
   );
@@ -929,5 +986,5 @@ export function ThemeImage({ size }: { size: number }) {
         className="hidden dark:block"
       />
     </div>
-  )
+  );
 }

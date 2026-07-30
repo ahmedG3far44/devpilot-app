@@ -1,32 +1,36 @@
-import {Response, NextFunction} from "express";
-import Jwt, {JwtPayload} from "jsonwebtoken";
-import {AuthRequest} from "../types";
-import env from "../utils/env";
+import { Response, NextFunction } from "express";
+import Jwt, { JwtPayload } from "jsonwebtoken";
+import { AuthRequest } from "../types";
+import env from "../config/env";
 
-export const authMiddleware = async (req : AuthRequest, res : Response, next : NextFunction) => {
-    try {
-        const token = req.cookies?.session;
+export const authMiddleware = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const token = req.cookies?.session;
 
-        if (! token) {
-            return res.status(401).json({error: "Authentication required"});
-        }
-
-        const decoded = Jwt.verify(token, env.JWT_SECRET)as JwtPayload;
-
-        if (! decoded || typeof decoded !== "object") {
-            return res.status(401).json({error: "Invalid token"});
-        }
-
-        req.user = {
-            id: decoded.id,
-            name: decoded.name,
-            username: decoded.username,
-            repos_url: decoded.repos_url,
-            avatar_url: decoded.avatar_url
-        };
-
-        next();
-    } catch (error) {
-        return res.status(500).json({error: "Invalid or expired token"});
+    if (!token) {
+      return res.status(401).json({ error: "Authentication required" });
     }
+
+    const decoded = Jwt.verify(token, env.JWT_SECRET!) as JwtPayload;
+
+    if (!decoded || typeof decoded !== "object") {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    req.user = {
+      id: decoded.id,
+      name: decoded.name,
+      username: decoded.username,
+      repos_url: decoded.repos_url,
+      avatar_url: decoded.avatar_url,
+    };
+
+    next();
+  } catch (error) {
+    return res.status(500).json({ error: "Invalid or expired token" });
+  }
 };
