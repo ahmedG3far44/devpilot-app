@@ -5,9 +5,14 @@ import type { IUser, RepositoryCardData } from "@/types";
 const BASE_URL = import.meta.env.VITE_BASE_URL as string;
 
 const AuthProvider: FC<PropsWithChildren> = ({ children }) => {
-  const [user, setUser] = useState<IUser | null>(
-    JSON.parse(localStorage.getItem("user")!) || null
-  );
+  const [user, setUser] = useState<IUser | null>(() => {
+    try {
+      const stored = localStorage.getItem("user");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [repos, setRepos] = useState<RepositoryCardData[]>([]);

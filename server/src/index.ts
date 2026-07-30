@@ -12,14 +12,23 @@ import env from "./config/env";
 dotenv.config();
 
 const app = express();
+app.set("trust proxy", 1);
 const PORT = process.env.PORT || 5000;
-const ALLOWED_ORIGIN = env.CLIENT_URL;
+const ALLOWED_ORIGINS = env.CLIENT_URL
+  ? env.CLIENT_URL.split(",").map((s) => s.trim())
+  : [];
 
 app.use(cookieParser());
 
 app.use(
   cors({
-    origin: ALLOWED_ORIGIN ? ALLOWED_ORIGIN.split(",") : "*",
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (ALLOWED_ORIGINS.length === 0 || ALLOWED_ORIGINS.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error("Not allowed by CORS"));
+    },
     methods: ["POST", "GET", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
@@ -37,7 +46,7 @@ app.get("/", (req, res) => {
     message:
       "Welcome to the DevPilot API. Please refer to the documentation for available endpoints.",
     availableEndpoints: "success",
-    client: ALLOWED_ORIGIN,
+    client: env.CLIENT_URL,
   });
 });
 
