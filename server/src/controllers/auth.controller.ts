@@ -26,8 +26,8 @@ export const githubCallback = async (req: Request, res: Response) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          client_id: env.GITHUB_CLIENT_ID,
-          client_secret: env.GITHUB_CLIENT_SECRET,
+          client_id: env.AUTH_GITHUB_CLIENT_ID,
+          client_secret: env.AUTH_GITHUB_CLIENT_SECRET,
           code,
         }),
       },
@@ -43,11 +43,9 @@ export const githubCallback = async (req: Request, res: Response) => {
     // console.log("github token data", tokenData)
 
     if (!access_token) {
-      return res
-        .status(400)
-        .json({
-          error: `Failed to retrieve GitHub access token ${tokenData.error}`,
-        });
+      return res.status(400).json({
+        error: `Failed to retrieve GitHub access token ${tokenData.error}`,
+      });
     }
 
     const userResponse = await fetch("https://api.github.com/user", {

@@ -17,8 +17,8 @@ const env = {
   CF_API_TOKEN: process.env.CF_API_TOKEN || "",
   EMAIL: process.env.EMAIL,
   DEPLOY_SCRIPT_PATH: process.env.DEPLOY_SCRIPT_PATH,
-  GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID || "",
-  GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET || "",
+  AUTH_GITHUB_CLIENT_ID: process.env.AUTH_GITHUB_CLIENT_ID || "",
+  AUTH_GITHUB_CLIENT_SECRET: process.env.AUTH_GITHUB_CLIENT_SECRET || "",
   CLIENT_URL: process.env.CLIENT_URL || "http://localhost:5173",
 };
 
