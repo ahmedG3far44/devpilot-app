@@ -29,7 +29,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.get("/", (req, res) => {
-  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+  res.status(200).json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    name: "DevPilot API",
+    message:
+      "Welcome to the DevPilot API. Please refer to the documentation for available endpoints.",
+    availableEndpoints: "success",
+    client: ALLOWED_ORIGIN,
+  });
 });
 
 app.use("/api", indexRouter);
