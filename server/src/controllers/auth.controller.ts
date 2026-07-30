@@ -87,22 +87,25 @@ export const githubCallback = async (req: Request, res: Response) => {
       { expiresIn: "7d" },
     );
 
-    const isProduction = env.NODE_ENV === "production";
+    const isSecure = req.secure;
     res.cookie("session", jwtToken, {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? "none" : "lax",
+      secure: isSecure,
+      sameSite: isSecure ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     res.cookie("access_token", access_token, {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? "none" : "lax",
+      secure: isSecure,
+      sameSite: isSecure ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    return res.redirect(`${env.CLIENT_URL}/user`);
+    const clientUrls = env.CLIENT_URL.split(",").map((s) => s.trim());
+    const redirectUrl = clientUrls.find((url) => !/:\/\/localhost/.test(url)) || clientUrls[0] || "http://localhost:5173";
+
+    return res.redirect(`${redirectUrl}/user`);
   } catch (error) {
     console.error("GitHub auth error:", error);
     res.status(500).json({ error: "Internal Server Error" });
