@@ -1,4 +1,5 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { Analytics } from "@vercel/analytics/react";
 
 import HomePage from "./pages/home";
 import UserPage from "./pages/user";
@@ -15,6 +16,7 @@ import Login from "./pages/login";
 const App = () => {
   return (
     <BrowserRouter>
+      <Analytics />
       <Routes>
 
         {/* Public Routes */}
