@@ -87,17 +87,18 @@ export const githubCallback = async (req: Request, res: Response) => {
       { expiresIn: "7d" },
     );
 
+    const isProduction = env.NODE_ENV === "production";
     res.cookie("session", jwtToken, {
       httpOnly: true,
-      secure: env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     res.cookie("access_token", access_token, {
       httpOnly: true,
-      secure: env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
