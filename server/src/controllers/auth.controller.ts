@@ -61,6 +61,8 @@ export const githubCallback = async (req: Request, res: Response) => {
     const { id, name, login, avatar_url, repos_url, location, bio, email } =
       githubUser;
 
+    console.log("github user data", githubUser);
+
     if (!user) {
       await User.create({
         githubId: id,
@@ -71,6 +73,7 @@ export const githubCallback = async (req: Request, res: Response) => {
         location,
         bio,
       });
+      console.log("New user created in the database!!");
     }
 
     const jwtToken = jwt.sign(
@@ -91,19 +94,17 @@ export const githubCallback = async (req: Request, res: Response) => {
     res.cookie("session", jwtToken, {
       httpOnly: true,
       secure: isSecure,
-      sameSite: isSecure ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     res.cookie("access_token", access_token, {
       httpOnly: true,
       secure: isSecure,
-      sameSite: isSecure ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    const clientUrls = env.CLIENT_URL.split(",").map((s) => s.trim());
-    const redirectUrl = clientUrls.find((url) => !/:\/\/localhost/.test(url)) || clientUrls[0] || "http://localhost:5173";
+    const clientUrls = env.CLIENT_URL;
+    const redirectUrl = clientUrls || "http://localhost:5173";
 
     return res.redirect(`${redirectUrl}/user`);
   } catch (error) {
