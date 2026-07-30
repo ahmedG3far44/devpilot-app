@@ -1,22 +1,21 @@
 import cors from "cors";
 import dotenv from "dotenv";
+import express from "express";
+import env from "./config/env";
 import cookieParser from "cookie-parser";
 import indexRouter from "./routes/index.route";
 
-import express from "express";
-
 import { errorHandler } from "./middlewares/errorHandler";
 import { connectDatabase } from "./config/db";
-import env from "./config/env";
 
 dotenv.config();
 
 const app = express();
+
 app.set("trust proxy", 1);
-const PORT = process.env.PORT || 5000;
-const ALLOWED_ORIGINS = env.CLIENT_URL
-  ? env.CLIENT_URL.split(",").map((s) => s.trim())
-  : [];
+
+const PORT = env.PORT || 5000;
+const ALLOWED_ORIGINS = env.CLIENT_URL;
 
 app.use(cookieParser());
 
@@ -29,7 +28,7 @@ app.use(
   }),
 );
 
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 app.get("/", (req, res) => {
@@ -54,7 +53,7 @@ const start = async () => {
 
     app.listen(Number(PORT), "0.0.0.0", () => {
       console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📝 Environment: ${process.env.NODE_ENV || "development"}`);
+      console.log(`📝 Environment: ${env.NODE_ENV}`);
     });
   } catch (error) {
     console.error("Failed to start server:", error);

@@ -20,6 +20,7 @@ const env = {
   AUTH_GITHUB_CLIENT_ID: process.env.AUTH_GITHUB_CLIENT_ID || "",
   AUTH_GITHUB_CLIENT_SECRET: process.env.AUTH_GITHUB_CLIENT_SECRET || "",
   CLIENT_URL: process.env.CLIENT_URL || "http://localhost:5173",
+  COOKIE_SAME_SITE: process.env.COOKIE_SAME_SITE || "",
 };
 
 export default env;

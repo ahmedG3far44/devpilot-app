@@ -92,12 +92,12 @@ export const githubCallback = async (req: Request, res: Response) => {
 
     console.log("jwt token", jwtToken);
 
-    const isProd = env.NODE_ENV === "production";
+    const cookieSameSite = (env.COOKIE_SAME_SITE || (req.secure ? "none" : "lax")) as "none" | "lax";
 
     const cookieOptions = {
       httpOnly: true,
-      secure: isProd,
-      sameSite: (isProd ? "none" : "lax") as "none" | "lax",
+      secure: cookieSameSite === "none",
+      sameSite: cookieSameSite as "none" | "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     };
 
