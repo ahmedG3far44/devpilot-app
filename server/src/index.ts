@@ -7,12 +7,13 @@ import express from "express";
 
 import { errorHandler } from "./middlewares/errorHandler";
 import { connectDatabase } from "./config/db";
+import env from "./config/env";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const ALLOWED_ORIGIN = process.env.CLIENT_URL;
+const ALLOWED_ORIGIN = env.CLIENT_URL;
 
 app.use(cookieParser());
 
