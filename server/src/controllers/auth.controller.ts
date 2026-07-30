@@ -90,26 +90,29 @@ export const githubCallback = async (req: Request, res: Response) => {
       { expiresIn: "7d" },
     );
 
-    const isSecure = req.secure;
-    res.cookie("session", jwtToken, {
-      httpOnly: true,
-      secure: isSecure,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    console.log("jwt token", jwtToken);
 
-    res.cookie("access_token", access_token, {
+    const isProd = env.NODE_ENV === "production";
+
+    const cookieOptions = {
       httpOnly: true,
-      secure: isSecure,
+      secure: isProd,
+      sameSite: (isProd ? "none" : "lax") as "none" | "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    };
+
+    res.cookie("session", jwtToken, cookieOptions);
+    res.cookie("access_token", access_token, cookieOptions);
 
     const clientUrls = env.CLIENT_URL;
-    const redirectUrl = clientUrls || "http://localhost:5173";
+    const redirectUrl = clientUrls;
 
     return res.redirect(`${redirectUrl}/user`);
   } catch (error) {
-    console.error("GitHub auth error:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error("GitHub auth error:", (error as Error).message);
+    res
+      .status(500)
+      .json({ error: "Internal Server Error" + (error as Error).message });
   }
 };
 
