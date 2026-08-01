@@ -29,7 +29,6 @@ const fadeInUp = {
 const HomePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-background text-foreground scroll-smooth overflow-x-clip">
-      
       <Seo
         title="DevPilot | Production Operations"
         description="DevPilot is a professional cloud platform that helps developers build, deploy, and monitor production-ready applications. Automatic HTTPS, global CDN, instant previews, and zero-config CI/CD."
