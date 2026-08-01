@@ -10,7 +10,9 @@ export const authMiddleware = async (
 ) => {
   try {
     console.log("Auth raw cookie header:", req.headers.cookie);
+    console.log("Auth raw cookies:", req.cookies);
     const token = req.cookies?.session;
+    console.log(req);
 
     console.log("Auth middleware token:", token);
 

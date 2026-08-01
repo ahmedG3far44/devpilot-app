@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import { Request, Response } from "express";
+import { Request, Response, CookieOptions } from "express";
 
 import env from "../config/env";
 import jwt from "jsonwebtoken";
@@ -92,12 +92,11 @@ export const githubCallback = async (req: Request, res: Response) => {
 
     console.log("jwt token", jwtToken);
 
-    const cookieSameSite = (env.COOKIE_SAME_SITE || (req.secure ? "none" : "lax")) as "none" | "lax";
 
-    const cookieOptions = {
+    const cookieOptions: CookieOptions = {
       httpOnly: true,
-      secure: cookieSameSite === "none",
-      sameSite: cookieSameSite as "none" | "lax",
+      secure: true,
+      sameSite: "none",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     };
 
