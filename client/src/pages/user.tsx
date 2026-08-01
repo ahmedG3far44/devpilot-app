@@ -3,6 +3,8 @@ import { useAuth } from "@/context/auth/AuthContext";
 import { RepoCard } from "../components/RepoCard";
 import Spinner from "@/components/ui/spinner";
 import ErrorMessage from "@/components/ui/error";
+import { cn } from "@/lib/utils";
+import Seo from "@/components/Seo";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -140,6 +142,12 @@ const UserPage = () => {
 
   return (
     <>
+      <Seo
+        title="My Repositories"
+        description="Browse, search, filter, and deploy your GitHub repositories with DevPilot."
+        canonicalPath="/user"
+        noindex
+      />
       {/* Search Bar */}
       <div className="my-10">
         <input
@@ -307,19 +315,22 @@ const UserPage = () => {
 
      
       {totalPages > 1 && (
-        <div className="mt-8 flex items-center justify-center gap-2">
+        <nav
+          aria-label="Pagination"
+          className="my-10 flex items-center justify-center gap-3"
+        >
           {/* Previous Button */}
           <button
             onClick={goToPrevPage}
             disabled={currentPage === 1}
-            className="px-4 py-2 cursor-pointer rounded-lg border border-accent disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent transition-colors"
+            className="inline-flex h-10 items-center justify-center rounded-lg border border-border bg-background px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             aria-label="Previous page"
           >
             Previous
           </button>
 
           {/* Page Numbers */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
               // Show first page, last page, current page, and pages around current
               const showPage =
@@ -332,21 +343,33 @@ const UserPage = () => {
                 (page === totalPages - 1 && currentPage < totalPages - 2);
 
               if (showEllipsis) {
-                return <span key={page} className="px-2">...</span>;
+                return (
+                  <span
+                    key={page}
+                    aria-hidden="true"
+                    className="flex h-10 w-6 items-center justify-center text-sm text-muted-foreground"
+                  >
+                    …
+                  </span>
+                );
               }
 
               if (!showPage) return null;
+
+              const isActive = currentPage === page;
 
               return (
                 <button
                   key={page}
                   onClick={() => goToPage(page)}
-                  className={`px-3 py-2 rounded-lg transition-colors cursor-pointer ${currentPage === page
-                    ? "bg-violet-600 hover:bg-violet-800 text-white"
-                    : "border border-accent hover:bg-accent"
-                    }`}
                   aria-label={`Go to page ${page}`}
-                  aria-current={currentPage === page ? "page" : undefined}
+                  aria-current={isActive ? "page" : undefined}
+                  className={cn(
+                    "inline-flex h-10 min-w-10 items-center justify-center rounded-lg border px-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                    isActive
+                      ? "border-transparent bg-primary text-primary-foreground shadow-sm"
+                      : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground",
+                  )}
                 >
                   {page}
                 </button>
@@ -358,12 +381,12 @@ const UserPage = () => {
           <button
             onClick={goToNextPage}
             disabled={currentPage === totalPages}
-            className="px-4 py-2 rounded-lg border border-accent disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent transition-colors"
+            className="inline-flex h-10 items-center justify-center rounded-lg border border-border bg-background px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             aria-label="Next page"
           >
             Next
           </button>
-        </div>
+        </nav>
       )}
     </>
   );

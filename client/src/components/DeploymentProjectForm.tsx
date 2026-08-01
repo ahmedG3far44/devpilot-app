@@ -1,8 +1,17 @@
 import { useState, useEffect } from "react";
+import Seo from "./Seo";
 import { Navigate, useParams } from "react-router-dom";
 import { useAuth } from "@/context/auth/AuthContext";
 import { useDeploy } from "@/context/deploy/DeployContext";
 import { Button } from "./ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { Switch } from "./ui/switch";
 
 import {
   Plus,
@@ -11,10 +20,14 @@ import {
   Info,
   Eye,
   EyeOff,
-  Loader2,
   LucideGitBranch,
   FileText,
   List,
+  ExternalLink,
+  Edit2,
+  Save,
+  Copy,
+  Check,
 } from "lucide-react";
 
 import DeploymentLogs from "./DeploymentLogs";
@@ -28,7 +41,7 @@ import type {
   ProjectTypeConfig,
 } from "@/types";
 
-export const PACKAGE_MANAGERS: PackageManager[] = [
+const PACKAGE_MANAGERS: PackageManager[] = [
   {
     value: "npm",
     label: "npm",
@@ -59,7 +72,14 @@ export const PACKAGE_MANAGERS: PackageManager[] = [
   },
 ];
 
-export const PROJECT_TYPES: ProjectTypeConfig[] = [
+const PACKAGE_MANAGER_IMAGES: Record<string, string> = {
+  npm: "/images/npm.svg",
+  pnpm: "/images/pnpm.svg",
+  yarn: "/images/yarn.svg",
+  bun: "/images/bun.svg",
+};
+
+const PROJECT_TYPES: ProjectTypeConfig[] = [
   {
     image: `/images/nextjs-dark.png`,
     value: "next",
@@ -96,7 +116,7 @@ export const PROJECT_TYPES: ProjectTypeConfig[] = [
     label: "Express JS",
     description: "Node.js web framework",
     requiresRunScript: true,
-    requiresBuildScript: false,
+    requiresBuildScript: true,
     defaultRunScript: "npm start",
     defaultBuildScript: "npm run build",
   },
@@ -117,13 +137,8 @@ const BASE_URL = import.meta.env.VITE_BASE_URL as string;
 const DeploymentProjectForm = () => {
   const { repos } = useAuth();
   const { repoName } = useParams();
-  const {
-    handleDeploy,
-    isDeploying,
-    logs,
-    deploymentResult,
-    resetDeploy,
-  } = useDeploy();
+  const { handleDeploy, isDeploying, logs, deploymentResult, resetDeploy } =
+    useDeploy();
 
   const [projects, setProjectsList] = useState<ProjectData[]>([]);
   const [envInputMode, setEnvInputMode] = useState<"individual" | "bulk">(
@@ -182,6 +197,8 @@ const DeploymentProjectForm = () => {
   });
 
   const [formData, setFormData] = useState<ProjectFormData>(initialFormData);
+  const [editConfig, setEditConfig] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     resetDeploy();
@@ -411,10 +428,7 @@ const DeploymentProjectForm = () => {
       newErrors.main_dir = "Main directory is required";
     }
 
-    if (
-      formData.main_dir &&
-      !/^\.\/[\w\-\/]*$|^\.\/$/.test(formData.main_dir)
-    ) {
+    if (formData.main_dir && !/^\.\/[\w/-]*$|^\.\/$/.test(formData.main_dir)) {
       newErrors.main_dir =
         "Directory must start with ./ and contain valid characters";
     }
@@ -452,10 +466,16 @@ const DeploymentProjectForm = () => {
 
     try {
       const deployPayload: DeployBodyType = {
-        name: (formData.name || deployedProject?.name || "").toLowerCase().trim(),
-        repo: (formData.clone_url || deployedProject?.clone_url || "").toLowerCase().trim(),
+        name: (formData.name || deployedProject?.name || "")
+          .toLowerCase()
+          .trim(),
+        repo: (formData.clone_url || deployedProject?.clone_url || "")
+          .toLowerCase()
+          .trim(),
         type: formData.type.toLowerCase().trim(),
-        branch: (formData.branch || deployedProject?.default_branch || "").toLowerCase().trim(),
+        branch: (formData.branch || deployedProject?.default_branch || "")
+          .toLowerCase()
+          .trim(),
         typescript: formData.typescript,
         run_script: formData.run_script.toLowerCase().trim(),
         build_script: formData.build_script.toLowerCase().trim(),
@@ -511,33 +531,82 @@ const DeploymentProjectForm = () => {
             </div>
           )}
           <div className="mb-6 p-4 rounded-lg border border-muted">
-            <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
-              <Info size={16} className="flex-shrink-0" />
-              Repository
-            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold flex items-center gap-2">
+                <Info size={16} className="flex-shrink-0" />
+                Repository
+              </h2>
+              {deployedProject?.html_url && (
+                <a
+                  href={deployedProject.html_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Open repository in new tab"
+                  title="Open repository in new tab"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <ExternalLink size={15} />
+                </a>
+              )}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="min-w-0">
-                <label className="block text-xs text-muted-foreground mb-0.5">Name</label>
+                <label className="block text-xs text-muted-foreground mb-0.5">
+                  Name
+                </label>
                 <p className="text-sm font-medium truncate">
                   {deployedProject?.name as string}
                 </p>
               </div>
               <div className="min-w-0">
-                <label className="block text-xs text-muted-foreground mb-0.5">Branch</label>
+                <label className="block text-xs text-muted-foreground mb-0.5">
+                  Branch
+                </label>
                 <p className="text-sm font-medium flex items-center gap-1">
                   <LucideGitBranch size={12} className="flex-shrink-0" />
-                  <span className="truncate">{deployedProject?.default_branch as string}</span>
+                  <span className="truncate">
+                    {deployedProject?.default_branch as string}
+                  </span>
                 </p>
               </div>
               <div className="min-w-0 sm:col-span-1">
-                <label className="block text-xs text-muted-foreground mb-0.5">Clone URL</label>
-                <p className="text-xs font-mono truncate">
-                  {deployedProject?.clone_url as string}
-                </p>
+                <label className="block text-xs text-muted-foreground mb-0.5">
+                  Clone URL
+                </label>
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <p className="text-xs font-mono truncate text-muted-foreground">
+                    {deployedProject?.clone_url as string}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const url = deployedProject?.clone_url;
+                      if (!url) return;
+                      try {
+                        await navigator.clipboard.writeText(url);
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      } catch {
+                        // clipboard unavailable
+                      }
+                    }}
+                    aria-label="Copy clone URL"
+                    title="Copy clone URL"
+                    className="inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {copied ? (
+                      <Check size={12} className="text-green-500" />
+                    ) : (
+                      <Copy size={12} />
+                    )}
+                  </button>
+                </div>
               </div>
               {deployedProject?.description && (
                 <div className="sm:col-span-3 min-w-0">
-                  <label className="block text-xs text-muted-foreground mb-0.5">Description</label>
+                  <label className="block text-xs text-muted-foreground mb-0.5">
+                    Description
+                  </label>
                   <p className="text-sm truncate">
                     {deployedProject?.description as string}
                   </p>
@@ -583,110 +652,191 @@ const DeploymentProjectForm = () => {
                 ))}
               </div>
             </div>
-            {formData.type !== "static" && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm sm:text-base font-semibold mb-2">
-                    Package Manager <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={formData.package_manager}
-                    disabled={isDeploying}
-                    onChange={(e) =>
-                      handleInputChange("package_manager", e.target.value)
-                    }
-                    className={`w-full px-3 sm:px-4 py-2 appearance-none rounded-lg bg-card border border-muted transition text-sm sm:text-base ${isDeploying ? "opacity-50 cursor-not-allowed" : "hover:bg-card cursor-pointer"}`}
-                  >
-                    {PACKAGE_MANAGERS.map((pm) => (
-                      <option
-                        className="cursor-pointer hover:bg-card border border-muted p-2 duration-300"
-                        key={pm.value}
-                        value={pm.value}
-                      >
-                        {pm.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex items-center gap-3 p-3 sm:p-4 rounded-lg border self-end">
-                  <input
-                    type="checkbox"
-                    id="typescript"
-                    disabled={isDeploying}
-                    checked={formData.typescript}
-                    onChange={(e) =>
-                      handleInputChange("typescript", e.target.checked)
-                    }
-                    className={`w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-2 focus:ring-blue-500 ${isDeploying ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-                  />
-                  <label
-                    htmlFor="typescript"
-                    className="text-sm sm:text-base font-medium text-muted-foreground cursor-pointer select-none"
-                  >
-                    This project uses TypeScript
-                  </label>
+            <div className="flex items-center justify-between gap-4 rounded-lg border p-3 sm:p-4 self-end">
+              <div className="flex items-center gap-3 min-w-0">
+                <img
+                  src="/images/typescript.png"
+                  alt="TypeScript logo"
+                  width={28}
+                  height={28}
+                  className="object-contain flex-shrink-0"
+                />
+                <div className="min-w-0">
+                  <p className="text-sm sm:text-base font-semibold leading-tight">
+                    TypeScript
+                  </p>
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 leading-snug">
+                    Enable if your project uses{" "}
+                    <span className="font-mono">.ts</span> /{" "}
+                    <span className="font-mono">.tsx</span> files. DevPilot will
+                    build it with the TypeScript compiler.
+                  </p>
                 </div>
               </div>
-            )}
+              <Switch
+                id="typescript"
+                disabled={isDeploying}
+                checked={formData.typescript}
+                onCheckedChange={(checked) =>
+                  handleInputChange("typescript", checked)
+                }
+                className={`flex-shrink-0 ${isDeploying ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                aria-label="Toggle TypeScript"
+              />
+            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {(currentProjectType.requiresBuildScript ||
-                formData.typescript) && (
-                <div>
-                  <label className="block text-sm sm:text-base font-semibold mb-2">
-                    Build Script <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.build_script}
-                    readOnly={isDeploying}
-                    onChange={(e) =>
-                      handleInputChange("build_script", e.target.value)
-                    }
-                    className={`w-full px-3 sm:px-4 py-2.5 rounded-lg border text-sm sm:text-base ${
-                      errors.build_script
-                        ? "border-red-300 bg-card"
-                        : "border-muted"
-                    } ${isDeploying ? "opacity-50" : ""} focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition`}
-                    placeholder="npm run build"
-                  />
-                  {errors.build_script && (
-                    <p className="mt-1.5 text-xs sm:text-sm text-red-600 flex items-center gap-1">
-                      <AlertCircle size={14} className="flex-shrink-0" />
-                      {errors.build_script}
-                    </p>
-                  )}
+            <div className="flex items-center justify-between gap-4 rounded-lg border p-3 sm:p-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className={`flex-shrink-0 rounded-md p-1.5 transition-colors ${editConfig ? "bg-blue-500/10 text-blue-500" : "bg-muted text-muted-foreground"}`}
+                >
+                  <Edit2 className="h-4 w-4" />
                 </div>
-              )}
+                <div className="min-w-0">
+                  <p className="text-sm sm:text-base font-semibold leading-tight">
+                    Edit Configuration
+                  </p>
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 leading-snug">
+                    {editConfig
+                      ? "You can modify the package manager, build and run scripts."
+                      : "Locked — the package manager and scripts below are read-only."}
+                  </p>
+                </div>
+              </div>
+              <Button
+                disabled={isDeploying}
+                onClick={() => setEditConfig((prev) => !prev)}
+                size="sm"
+                variant={editConfig ? "default" : "outline"}
+                className={`flex-shrink-0 gap-1.5 ${isDeploying ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+              >
+                {editConfig ? (
+                  <>
+                    <Save className="h-3.5 w-3.5" />
+                    Save
+                  </>
+                ) : (
+                  <>
+                    <Edit2 className="h-3.5 w-3.5" />
+                    Edit
+                  </>
+                )}
+              </Button>
+            </div>
 
-              {currentProjectType.requiresRunScript && (
-                <div>
-                  <label className="block text-sm sm:text-base font-semibold mb-2">
-                    Run Script <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.run_script}
-                    readOnly={isDeploying}
-                    onChange={(e) =>
-                      handleInputChange("run_script", e.target.value)
-                    }
-                    className={`w-full px-3 sm:px-4 py-2.5 rounded-lg border text-sm sm:text-base ${
-                      errors.run_script
-                        ? "border-red-300 bg-card"
-                        : "border-muted"
-                    } ${isDeploying ? "opacity-50" : ""} focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition`}
-                    placeholder="npm start"
-                  />
-                  {errors.runScript && (
-                    <p className="mt-1.5 text-xs sm:text-sm text-red-600 flex items-center gap-1">
-                      <AlertCircle size={14} className="flex-shrink-0" />
-                      {errors.runScript}
-                    </p>
-                  )}
-                </div>
-              )}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+              <div className=" col-span-1">
+                {formData.type !== "static" && (
+                  <div>
+                    <label className="block text-sm sm:text-base font-semibold mb-2">
+                      Package Manager <span className="text-red-500">*</span>
+                    </label>
+                    <Select
+                      value={formData.package_manager}
+                      onValueChange={(value) =>
+                        handleInputChange("package_manager", value)
+                      }
+                      disabled={isDeploying || !editConfig}
+                    >
+                      <SelectTrigger
+                        className={`w-full h-11 px-3 sm:px-4 rounded-lg text-sm sm:text-base shadow-none transition ${
+                          editConfig
+                            ? "border-muted focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:border-transparent cursor-pointer"
+                            : "border-border bg-muted/40 text-muted-foreground cursor-not-allowed"
+                        } ${isDeploying ? "opacity-50 cursor-not-allowed" : ""}`}
+                      >
+                        <SelectValue placeholder="Select package manager" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PACKAGE_MANAGERS.map((pm) => (
+                          <SelectItem
+                            key={pm.value}
+                            value={pm.value}
+                            className="cursor-pointer"
+                          >
+                            <span className="flex items-center gap-2">
+                              {PACKAGE_MANAGER_IMAGES[pm.value] && (
+                                <img
+                                  src={PACKAGE_MANAGER_IMAGES[pm.value]}
+                                  alt=""
+                                  width={16}
+                                  height={16}
+                                  className="object-contain"
+                                />
+                              )}
+                              {pm.label}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+              <div className="col-span-1">
+                {(currentProjectType.requiresBuildScript ||
+                  formData.typescript) && (
+                  <div className="sm:col-span-2 col-span-1">
+                    <label className="block text-sm sm:text-base font-semibold mb-2">
+                      Build Script <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.build_script}
+                      readOnly={isDeploying || !editConfig}
+                      onChange={(e) =>
+                        handleInputChange("build_script", e.target.value)
+                      }
+                      className={`w-full h-11 px-3 sm:px-4 rounded-lg border text-sm sm:text-base transition ${
+                        !editConfig
+                          ? "border-border bg-muted/40 text-muted-foreground cursor-not-allowed"
+                          : errors.build_script
+                            ? "border-red-300 bg-card"
+                            : "border-muted"
+                      } ${isDeploying ? "opacity-50" : ""} ${editConfig ? "focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none" : ""}`}
+                      placeholder="npm run build"
+                    />
+                    {errors.build_script && (
+                      <p className="mt-1.5 text-xs sm:text-sm text-red-600 flex items-center gap-1">
+                        <AlertCircle size={14} className="flex-shrink-0" />
+                        {errors.build_script}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="col-span-1">
+                {currentProjectType.requiresRunScript && (
+                  <div className="sm:col-span-2 col-span-1">
+                    <label className="block text-sm sm:text-base font-semibold mb-2">
+                      Run Script <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.run_script}
+                      readOnly={isDeploying || !editConfig}
+                      onChange={(e) =>
+                        handleInputChange("run_script", e.target.value)
+                      }
+                      className={`w-full h-11 px-3 sm:px-4 rounded-lg border text-sm sm:text-base transition ${
+                        !editConfig
+                          ? "border-border bg-muted/40 text-muted-foreground cursor-not-allowed"
+                          : errors.run_script
+                            ? "border-red-300 bg-card"
+                            : "border-muted"
+                      } ${isDeploying ? "opacity-50" : ""} ${editConfig ? "focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none" : ""}`}
+                      placeholder="npm start"
+                    />
+                    {errors.runScript && (
+                      <p className="mt-1.5 text-xs sm:text-sm text-red-600 flex items-center gap-1">
+                        <AlertCircle size={14} className="flex-shrink-0" />
+                        {errors.runScript}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div>
@@ -703,24 +853,37 @@ const DeploymentProjectForm = () => {
                 } ${isDeploying ? "opacity-50" : ""} focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition`}
                 placeholder="./"
               />
-              <p className="mt-1.5 text-xs sm:text-sm ">
-                Root directory of your project example ({" "}
-                <span className="font-semibold text-blue-500 mx-1">./</span>{" "}
-                <span className="font-semibold text-blue-500 mx-1">
-                  ./server
-                </span>{" "}
-                <span className="font-semibold text-blue-500 mx-1">
-                  ./client
-                </span>{" "}
-                <span className="font-semibold text-blue-500 mx-1">
-                  ./frontend
-                </span>{" "}
-                <span className="font-semibold text-blue-500 mx-1">
-                  ./backend
-                </span>{" "}
-                <span className="font-semibold text-blue-500 mx-1">./app</span>{" "}
-                etc...)
-              </p>
+              <div className="mt-2 flex items-start gap-2.5 rounded-lg border border-muted bg-muted/30 px-3 py-2.5">
+                <Info
+                  className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5"
+                  size={14}
+                />
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                    Path to the folder that holds your app's source code,
+                    relative to the repo root. Use{" "}
+                    <span className="font-mono font-semibold text-foreground">
+                      ./
+                    </span>{" "}
+                    when your project sits at the root of the repository.
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Examples:
+                    </span>
+                    {["./", "./server", "./client", "./frontend", "./backend", "./app"].map(
+                      (example) => (
+                        <code
+                          key={example}
+                          className="rounded border border-border bg-card px-1.5 py-0.5 font-mono text-[11px] text-blue-600 dark:text-blue-400"
+                        >
+                          {example}
+                        </code>
+                      ),
+                    )}
+                  </div>
+                </div>
+              </div>
               {errors.main_dir && (
                 <p className="mt-1.5 text-xs sm:text-sm text-red-600 flex items-center gap-1">
                   <AlertCircle size={14} className="flex-shrink-0" />
@@ -938,26 +1101,21 @@ export NEXT_PUBLIC_API_URL="https://api.example.com"`}
                 disabled={isDeploying}
                 className={`w-full py-3 text-primary border border-muted bg-card hover:bg-accent  transition shadow-sm  lg:text-xs text-base flex items-center justify-center gap-2 cursor-pointer duration-300  `}
               >
-                {isDeploying ? (
-                  <>
-                    <Loader2 className="animate-spin" size={15} />
-                    Deploying...
-                  </>
-                ) : (
-                  "Deploy Project"
-                )}
+                {isDeploying ? <>Processing Deployment...</> : "Deploy Project"}
               </Button>
             </div>
           </div>
         </div>
 
-        <DeploymentLogs
-          logs={logs}
-          isDeploying={isDeploying}
-          projectName={deployedProject?.name as string}
-          result={deploymentResult}
-          onReset={resetDeploy}
-        />
+        {(logs.length > 0 || isDeploying || deploymentResult) && (
+          <DeploymentLogs
+            logs={logs}
+            isDeploying={isDeploying}
+            projectName={deployedProject?.name as string}
+            result={deploymentResult}
+            onReset={resetDeploy}
+          />
+        )}
       </div>
     </div>
   );
@@ -968,6 +1126,11 @@ export default DeploymentProjectForm;
 export function ThemeImage({ size }: { size: number }) {
   return (
     <div className="relative">
+      <Seo
+        title="Deploy Project"
+        description="Configure and deploy your project with DevPilot."
+        noindex
+      />
       {/* This image shows ONLY in Light mode */}
       <img
         src="/images/nextjs-dark.png"

@@ -1,6 +1,6 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import Seo from "@/components/Seo";
 import {
-  Globe,
   GitBranch,
   Clock,
   Zap,
@@ -9,12 +9,8 @@ import {
   AlertCircle,
   Loader2,
   Trash2,
-  Play,
-  Square,
   Settings,
   Plus,
-  Eye,
-  EyeOff,
   Edit2,
   Save,
   X,
@@ -22,22 +18,13 @@ import {
   ChevronDown,
   ChevronUp,
   CalendarSyncIcon,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 import {
   Dialog,
@@ -49,11 +36,22 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn, formatDuration, formatTimestamp } from "@/lib/utils";
 import { useProject } from "@/context/projects/ProjectsContext";
 import { useNavigate, useParams } from "react-router-dom";
+import DeploymentLogs from "@/components/DeploymentLogs";
+import { ThemeImage } from "@/components/DeploymentProjectForm";
 import type {
   Deployment,
+  DeploymentResult,
   DeploymentStatus,
   EnvVariable,
   ProjectDetailsData,
@@ -73,10 +71,17 @@ export default function DeploymentDetails() {
   const navigate = useNavigate();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteConfirmName, setDeleteConfirmName] = useState("");
-  const [showStopDialog, setShowStopDialog] = useState(false);
   const [showEnvDialog, setShowEnvDialog] = useState(false);
-  const [mustRedeploy, setMustRedeploy] = useState(true);
+  const [mustRedeploy, setMustRedeploy] = useState(false);
   const [envVariables, setEnvVariables] = useState<EnvVariable[]>([]);
+  const [editedConfig, setEditedConfig] = useState<
+    Partial<ProjectDetailsData> | null
+  >(null);
+  const [redeployLogs, setRedeployLogs] = useState<string[]>([]);
+  const [redeployResult, setRedeployResult] = useState<DeploymentResult | null>(
+    null,
+  );
+  const [isRedeploying, setIsRedeploying] = useState(false);
 
   const [newEnvKey, setNewEnvKey] = useState("");
 
@@ -105,9 +110,92 @@ export default function DeploymentDetails() {
     }
   };
 
-  const confirmStop = () => {
-    console.log("Confirming Stop project...");
-    fetchProjectDetails();
+  const handleRedeploy = async (projectId: string) => {
+    if (!projectData) return;
+    setIsRedeploying(true);
+    setRedeployLogs(["> Initializing redeploy..."]);
+    setRedeployResult(null);
+
+    try {
+      const response = await fetch(
+        `${BASE_URL}/deployment/${projectId}/redeploy`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            branch: "main",
+            main_dir: editedConfig?.main_dir ?? projectData.main_dir,
+            build_script:
+              editedConfig?.build_script ?? projectData.build_script,
+            run_script: editedConfig?.run_script ?? projectData.run_script,
+            package_manager:
+              editedConfig?.package_manager ?? projectData.package_manager,
+            typescript: editedConfig?.typescript ?? projectData.typescript,
+            environments: envVariables,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Server Error (${response.status}): ${errText}`);
+      }
+
+      if (!response.body) {
+        throw new Error("ReadableStream not supported in this browser.");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+      let fullText = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          setRedeployLogs((prev) => [...prev, "> Connection closed."]);
+          break;
+        }
+
+        const chunk = decoder.decode(value, { stream: true });
+        fullText += chunk;
+        buffer += chunk;
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        if (lines.length > 0) {
+          setRedeployLogs((prev) => [...prev, ...lines]);
+        }
+      }
+
+      if (fullText.includes("DEPLOY_STATUS:SUCCESS")) {
+        setRedeployResult({ status: "success", projectId });
+        setMustRedeploy(false);
+        setEditedConfig(null);
+      } else if (fullText.includes("DEPLOY_STATUS:FAILED")) {
+        setRedeployResult({
+          status: "error",
+          message: "Redeploy failed. Check the logs above for details.",
+        });
+      } else {
+        setRedeployResult({
+          status: "error",
+          message:
+            "Redeploy ended without success confirmation. Check the logs above.",
+        });
+      }
+
+      await fetchProjectDetails();
+    } catch (err: any) {
+      setRedeployResult({ status: "error", message: err.message });
+      setRedeployLogs((prev) => [...prev, `> Error: ${err.message}`]);
+    } finally {
+      setIsRedeploying(false);
+    }
   };
 
   const canShowLogs = () => {
@@ -175,17 +263,27 @@ export default function DeploymentDetails() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <DeploymentsAction
-        envVariables={projectData.environments}
+        envVariables={envVariables}
         projectData={projectData}
         setShowDeleteDialog={setShowDeleteDialog}
         setDeleteConfirmName={setDeleteConfirmName}
-        setShowStopDialog={setShowStopDialog}
         setShowEnvDialog={setShowEnvDialog}
-        setDeployments={setDeployments}
         mustRedeploy={mustRedeploy}
-        setMustRedeploy={setMustRedeploy}
+        isRedeploying={isRedeploying}
+        onRedeploy={handleRedeploy}
         fetchProjectDetails={fetchProjectDetails}
       />
+
+      {(isRedeploying || redeployResult || redeployLogs.length > 0) && (
+        <div className="container mx-auto py-8">
+          <DeploymentLogs
+            logs={redeployLogs}
+            isDeploying={isRedeploying}
+            projectName={projectData?.name}
+            result={redeployResult}
+          />
+        </div>
+      )}
 
       <main className="container mx-auto py-8">
         <div className="grid gap-6 lg:grid-cols-3">
@@ -216,7 +314,13 @@ export default function DeploymentDetails() {
           </div>
 
           <div className="space-y-6">
-            <ProjectConfiguration projectData={projectData} />
+            <ProjectConfiguration
+              projectData={projectData}
+              onConfigEdit={(config) => {
+                setEditedConfig(config);
+                setMustRedeploy(true);
+              }}
+            />
             <EnvironmentVariables
               envVariables={envVariables}
               setEnvVariables={setEnvVariables}
@@ -284,22 +388,6 @@ export default function DeploymentDetails() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <AlertDialog open={showStopDialog} onOpenChange={setShowStopDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Stop Project</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to stop "{projectData.name}"? This will
-              cause immediate downtime until you start it again.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmStop}>Stop</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
@@ -387,56 +475,272 @@ const getStatusColor = (status: ProjectStatus | DeploymentStatus) => {
   }
 };
 
+const PROJECT_TYPE_IMAGES: Record<string, string> = {
+  react: "/images/reactjs.png",
+  nest: "/images/nestjs.png",
+  express: "/images/expressjs.png",
+  static: "/images/static.png",
+};
+
+const PACKAGE_MANAGER_IMAGES: Record<string, string> = {
+  npm: "/images/npm.svg",
+  pnpm: "/images/pnpm.svg",
+  yarn: "/images/yarn.svg",
+};
+
+const STATUS_BADGE_STYLES: Record<string, string> = {
+  active:
+    "bg-green-500/10 text-green-500 border-green-500/30 hover:bg-green-500/10",
+  success:
+    "bg-green-500/10 text-green-500 border-green-500/30 hover:bg-green-500/10",
+  failed: "bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/10",
+  stopped: "bg-gray-500/10 text-gray-500 border-gray-500/30 hover:bg-gray-500/10",
+  pending:
+    "bg-amber-500/10 text-amber-500 border-amber-500/30 hover:bg-amber-500/10",
+};
+
+const STATUS_DOT_STYLES: Record<string, string> = {
+  active: "bg-green-500",
+  success: "bg-green-500",
+  failed: "bg-red-500",
+  stopped: "bg-gray-400",
+  pending: "bg-amber-500",
+};
+
+function StatusBadge({ status }: { status: string }) {
+  const isActive = status === "active";
+  return (
+    <Badge
+      className={cn(
+        "gap-1.5 border px-2.5 py-1 capitalize",
+        STATUS_BADGE_STYLES[status] ??
+          "bg-muted text-muted-foreground border-border",
+      )}
+    >
+      <span
+        className={cn(
+          "h-2 w-2 rounded-full",
+          STATUS_DOT_STYLES[status] ?? "bg-gray-400",
+          isActive && "animate-pulse",
+        )}
+      />
+      {status}
+    </Badge>
+  );
+}
+
+function ProjectTypeBadge({ type }: { type: string }) {
+  return (
+    <Badge
+      variant="outline"
+      className="gap-1.5 border-border bg-card px-2.5 py-1 font-medium"
+    >
+      {type === "next" ? (
+        <ThemeImage size={16} />
+      ) : (
+        <img
+          src={PROJECT_TYPE_IMAGES[type]}
+          alt=""
+          width={16}
+          height={16}
+          className="object-contain"
+        />
+      )}
+      <span className="capitalize">{type}</span>
+    </Badge>
+  );
+}
+
 function ProjectConfiguration({
   projectData,
+  onConfigEdit,
 }: {
   projectData: ProjectDetailsData;
+  onConfigEdit: (config: Partial<ProjectDetailsData>) => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<Partial<ProjectDetailsData>>({});
+
+  const startEdit = () => {
+    setDraft({
+      main_dir: projectData.main_dir,
+      build_script: projectData.build_script,
+      run_script: projectData.run_script,
+      package_manager: projectData.package_manager,
+      typescript: projectData.typescript,
+    });
+    setEditing(true);
+  };
+
+  const saveEdit = () => {
+    onConfigEdit(draft);
+    setEditing(false);
+  };
+
+  const updateField = (field: keyof ProjectDetailsData, value: string) => {
+    setDraft((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const isStatic = projectData.type === "static";
+
+  const repoUrl = projectData.clone_url.replace(/\.git$/, "");
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Settings className="h-5 w-5" />
-          Project Configuration
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="h-5 w-5" />
+            Project Configuration
+          </CardTitle>
+          {!editing && (
+            <Button onClick={startEdit} size="sm" variant="outline">
+              <Edit2 className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">Clone URL</Label>
-          <p className="text-sm break-all">{projectData.clone_url}</p>
+          <div className="flex items-center justify-between gap-2">
+            <Label className="text-xs text-muted-foreground">Clone URL</Label>
+            <a
+              href={repoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Open repository in new tab"
+              title="Open repository in new tab"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <ExternalLink size={14} />
+            </a>
+          </div>
+          <p className="text-sm break-all text-muted-foreground">{projectData.clone_url}</p>
         </div>
         <Separator />
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">Branch</Label>
-          <p className="text-sm font-mono">{projectData.branch}</p>
+          <Input
+            value="main"
+            readOnly
+            className="cursor-not-allowed"
+            aria-readonly="true"
+            aria-label="Branch (locked to main)"
+          />
         </div>
         <Separator />
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">
             Main Directory
           </Label>
-          <p className="text-sm font-mono">{projectData.main_dir}</p>
+          {editing ? (
+            <Input
+              value={draft.main_dir ?? ""}
+              onChange={(e) => updateField("main_dir", e.target.value)}
+            />
+          ) : (
+            <p className="text-sm font-mono">{projectData.main_dir}</p>
+          )}
         </div>
         <Separator />
-        <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">Build Script</Label>
-          <p className="text-sm font-mono">{projectData.build_script}</p>
-        </div>
-        <Separator />
-        <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">Run Script</Label>
-          <p className="text-sm font-mono">{projectData.run_script || "N/A"}</p>
-        </div>
-        <Separator />
-        <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">TypeScript</Label>
-          <p className="text-sm">{projectData.typescript ? "Yes" : "No"}</p>
-        </div>
-        <Separator />
-        <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">Type</Label>
-          <p className="text-sm">{projectData.type}</p>
-        </div>
+        {!isStatic && (
+          <>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">
+                Build Script
+              </Label>
+              {editing ? (
+                <Input
+                  value={draft.build_script ?? ""}
+                  onChange={(e) => updateField("build_script", e.target.value)}
+                />
+              ) : (
+                <p className="text-sm font-mono">{projectData.build_script}</p>
+              )}
+            </div>
+            <Separator />
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">
+                Run Script
+              </Label>
+              {editing ? (
+                <Input
+                  value={draft.run_script ?? ""}
+                  onChange={(e) => updateField("run_script", e.target.value)}
+                />
+              ) : (
+                <p className="text-sm font-mono">
+                  {projectData.run_script || "N/A"}
+                </p>
+              )}
+            </div>
+            <Separator />
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">
+                Package Manager
+              </Label>
+              {editing ? (
+                <Select
+                  value={draft.package_manager ?? "npm"}
+                  onValueChange={(value) =>
+                    updateField("package_manager", value)
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["npm", "pnpm", "yarn", "n/a"].map((pkg) => (
+                      <SelectItem key={pkg} value={pkg}>
+                        {pkg}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-sm font-mono">
+                  {projectData.package_manager}
+                </p>
+              )}
+            </div>
+            <Separator />
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">
+                TypeScript
+              </Label>
+              {editing ? (
+                <Switch
+                  checked={draft.typescript ?? false}
+                  onCheckedChange={(checked) =>
+                    setDraft((prev) => ({ ...prev, typescript: checked }))
+                  }
+                />
+              ) : (
+                <p className="text-sm font-mono">
+                  {projectData.typescript ? "Yes" : "No"}
+                </p>
+              )}
+            </div>
+          </>
+        )}
+        {editing && (
+          <>
+            {!isStatic && <Separator />}
+            <div className="flex gap-2">
+              <Button onClick={saveEdit} size="sm" className="gap-2">
+                <Save className="h-4 w-4" />
+                Save Changes
+              </Button>
+              <Button
+                onClick={() => setEditing(false)}
+                variant="outline"
+                size="sm"
+              >
+                Cancel
+              </Button>
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );
@@ -462,7 +766,6 @@ function EnvironmentVariables({
   setEnvVariables: Dispatch<SetStateAction<EnvVariable[]>>;
 }) {
   const [editingEnvId, setEditingEnvId] = useState<string | null>(null);
-  const [maskedValues, setMaskedValues] = useState<Record<string, boolean>>({});
   const [tempEnvValues, setTempEnvValues] = useState<Record<string, string>>(
     {},
   );
@@ -470,12 +773,7 @@ function EnvironmentVariables({
 
   useEffect(() => {
     setEnvVariables(projectData.environments || []);
-    setMustRedeploy(true);
   }, [projectData.environments]);
-
-  const toggleMask = (id: string) => {
-    setMaskedValues((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
 
   const addEnvVariable = () => {
     if (!newEnvKey.trim()) return;
@@ -496,23 +794,24 @@ function EnvironmentVariables({
     setNewEnvKey("");
     setNewEnvValue("");
     setShowEnvDialog(false);
+    setMustRedeploy(true);
   };
 
   const startEditEnv = (id: string) => {
-    const envVar = envVariables.find((v) => v.id === id);
-    if (envVar) {
-      setEditingEnvId(id);
-      setTempEnvValues((prev) => ({ ...prev, [id]: envVar.value }));
-    }
+    setEditingEnvId(id);
+    setTempEnvValues((prev) => ({ ...prev, [id]: "" }));
   };
 
   const saveEnvEdit = (id: string) => {
     setEnvVariables((prev) =>
       prev.map((v) =>
-        v.id === id ? { ...v, value: tempEnvValues[id] || v.value } : v,
+        v.id === id && tempEnvValues[id]?.trim()
+          ? { ...v, value: tempEnvValues[id] }
+          : v,
       ),
     );
     setEditingEnvId(null);
+    setMustRedeploy(true);
   };
 
   const cancelEnvEdit = (id: string) => {
@@ -526,15 +825,11 @@ function EnvironmentVariables({
 
   const deleteEnvVariable = (id: string) => {
     setEnvVariables((prev) => prev.filter((v) => v.id !== id));
-  };
-
-  const isSensitive = (key: string) => {
-    return /TOKEN|SECRET|KEY|PASSWORD|API/i.test(key);
+    setMustRedeploy(true);
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <Card>      <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Terminal className="h-5 w-5" />
@@ -591,20 +886,6 @@ function EnvironmentVariables({
                         </>
                       ) : (
                         <>
-                          {isSensitive(envVar.key) && (
-                            <Button
-                              onClick={() => toggleMask(envVar.id as string)}
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 w-7 p-0"
-                            >
-                              {maskedValues[envVar.id as string] ? (
-                                <Eye className="h-3.5 w-3.5" />
-                              ) : (
-                                <EyeOff className="h-3.5 w-3.5" />
-                              )}
-                            </Button>
-                          )}
                           <Button
                             onClick={() => startEditEnv(envVar.id as string)}
                             size="sm"
@@ -636,14 +917,12 @@ function EnvironmentVariables({
                           [envVar.id as string]: e.target.value,
                         }))
                       }
+                      placeholder="Enter new value"
                       className="font-mono text-xs"
                     />
                   ) : (
                     <p className="text-xs font-mono break-all text-muted-foreground">
-                      {isSensitive(envVar.key) &&
-                      !maskedValues[envVar.id as string]
-                        ? "•".repeat(20)
-                        : envVar.value}
+                      ••••••••••••••••••••
                     </p>
                   )}
                 </div>
@@ -684,8 +963,8 @@ function EnvironmentVariables({
               <div className="flex items-start gap-2 rounded-md border border-yellow-500/20 bg-yellow-500/10 p-3">
                 <AlertCircle className="h-4 w-4 text-yellow-500 mt-0.5" />
                 <p className="text-xs text-yellow-500">
-                  This appears to be a sensitive value and will be masked by
-                  default.
+                  This appears to be a sensitive value and will stay hidden
+                  after saving.
                 </p>
               </div>
             )}
@@ -909,107 +1188,22 @@ function DeploymentsAction({
   envVariables,
   setShowDeleteDialog,
   setDeleteConfirmName,
-  setShowStopDialog,
   setShowEnvDialog,
-  setDeployments,
   mustRedeploy,
-  setMustRedeploy,
+  isRedeploying,
+  onRedeploy,
   fetchProjectDetails,
 }: {
   projectData: ProjectDetailsData;
   envVariables: EnvVariable[];
   setShowDeleteDialog: (show: boolean) => void;
   setDeleteConfirmName: (name: string) => void;
-  setShowStopDialog: (show: boolean) => void;
   setShowEnvDialog: (show: boolean) => void;
-  setDeployments: Dispatch<SetStateAction<Deployment[]>>;
   mustRedeploy: boolean;
-  setMustRedeploy: (mustRedeploy: boolean) => void;
+  isRedeploying: boolean;
+  onRedeploy: (projectId: string) => Promise<void>;
   fetchProjectDetails: () => Promise<void>;
 }) {
-  const [loading, setLoading] = useState(false);
-  const [staring, setStaring] = useState(false);
-
-  const [stopping, setStopping] = useState(false);
-
-  const handleRedeploy = async (projectId: string) => {
-    setLoading(true);
-    try {
-      const response = await fetch(
-        `${BASE_URL}/deployment/${projectId}/redeploy`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-        },
-      );
-      const data = await response.json();
-      if (data.success) {
-        setDeployments((prevDeployments: Deployment[]) => [
-          ...prevDeployments,
-          data.deployment,
-        ]);
-        setMustRedeploy(false);
-      }
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleStop = async () => {
-    setStopping(true);
-    try {
-      const response = await fetch(
-        `${BASE_URL}/deployment/${projectData._id}/stop`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-        },
-      );
-      const data = await response.json();
-      console.log(data);
-      await fetchProjectDetails();
-      setShowStopDialog(false);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setStopping(false);
-    }
-  };
-
-  const handleStart = async () => {
-    try {
-      setStaring(true);
-      const response = await fetch(
-        `${BASE_URL}/deployment/${projectData._id}/start`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-        },
-      );
-      if (!response.ok) {
-        throw new Error("Failed to start project");
-      }
-      const data = await response.json();
-      console.log(data);
-      await fetchProjectDetails();
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setStaring(false);
-    }
-  };
-
   const handleDelete = () => {
     setDeleteConfirmName("");
     setShowDeleteDialog(true);
@@ -1038,7 +1232,13 @@ function DeploymentsAction({
   };
 
   return (
-    <header className="border-b border-border ">
+    <>
+      <Seo
+        title="Deployment Details"
+        description="Live deployment logs and configuration for your project."
+        noindex
+      />
+      <header className="border-b border-border ">
       <div className="container mx-auto py-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -1047,29 +1247,38 @@ function DeploymentsAction({
               <h1 className="text-2xl font-bold">{projectData.name}</h1>
             </div>
             <div className="flex items-center gap-2">
-              <Badge
-                className={cn("border", getStatusColor(projectData.status))}
-              >
-                {projectData.status.toLowerCase()}
-              </Badge>
-              <Badge variant="outline">{projectData.type.toLowerCase()}</Badge>
+              <StatusBadge status={projectData.status} />
+              <ProjectTypeBadge type={projectData.type} />
+              {projectData.type !== "static" &&
+                projectData.package_manager && (
+                  <Badge
+                    variant="outline"
+                    className="gap-1.5 border-border bg-card px-2.5 py-1 font-medium"
+                  >
+                    {PACKAGE_MANAGER_IMAGES[projectData.package_manager] && (
+                      <img
+                        src={PACKAGE_MANAGER_IMAGES[projectData.package_manager]}
+                        alt={projectData.package_manager}
+                        width={16}
+                        height={16}
+                        className="object-contain"
+                      />
+                    )}
+                    <span className="capitalize">
+                      {projectData.package_manager}
+                    </span>
+                  </Badge>
+                )}
             </div>
-          </div>
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Terminal className="h-4 w-4" />
-            <span>Package: {projectData.package_manager}</span>
           </div>
           {projectData.status === "active" && projectData.production_url && (
             <a
               href={projectData.production_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 text-blue-500 hover:underline"
+              className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
             >
-              <Globe className="h-4 w-4" />
+              <ExternalLink className="h-4 w-4" />
               Visit Site
             </a>
           )}
@@ -1079,12 +1288,12 @@ function DeploymentsAction({
           {(projectData.status === "active" ||
             projectData.status === "failed") && (
             <Button
-              disabled={!mustRedeploy}
-              onClick={() => handleRedeploy(projectData._id)}
+              disabled={!mustRedeploy || isRedeploying}
+              onClick={() => onRedeploy(projectData._id)}
               variant={mustRedeploy ? "default" : "outline"}
               size="sm"
             >
-              {loading ? (
+              {isRedeploying ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <span className="animated-pulse  inline-flex items-center gap-2">
@@ -1095,40 +1304,6 @@ function DeploymentsAction({
                 </span>
               )}
             </Button>
-          )}
-          {projectData.type !== "static" && projectData.type !== "react" && (
-            <>
-              {projectData.status === "active" && (
-                <Button onClick={handleStop} variant="outline" size="sm">
-                  {stopping ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
-                      stopping...
-                    </>
-                  ) : (
-                    <>
-                      <Square className="mr-2 h-4 w-4" />
-                      Stop
-                    </>
-                  )}
-                </Button>
-              )}
-              {projectData.status === "stopped" && (
-                <Button onClick={handleStart} variant="outline" size="sm">
-                  {staring ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
-                      starting...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="mr-2 h-4 w-4" />
-                      Start
-                    </>
-                  )}
-                </Button>
-              )}
-            </>
           )}
           <Button
             onClick={() => setShowEnvDialog(true)}
@@ -1162,5 +1337,6 @@ function DeploymentsAction({
         </div>
       </div>
     </header>
+    </>
   );
 }

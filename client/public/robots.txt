@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /login
+Disallow: /user
+Disallow: /projects
+Disallow: /deploy/
+Disallow: /deployments/
+Disallow: /success
+Disallow: /dashboard
+
+Sitemap: https://devpilot.njerka.xyz/sitemap.xml

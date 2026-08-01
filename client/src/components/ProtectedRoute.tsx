@@ -1,6 +1,7 @@
 import { Navigate, Outlet } from "react-router-dom";
-import { Header } from "./header";
 import { useAuth } from "@/context/auth/AuthContext";
+
+import Header from "./Header";
 
 const ProtectedRoute = () => {
   const { isAuthenticated } = useAuth();
@@ -8,9 +9,13 @@ const ProtectedRoute = () => {
   if (!isAuthenticated) return <Navigate to={"/"} />;
 
   return (
-    <div className="lg:w-3/4 mx-auto min-h-screen p-4 lg:p-8">
+    <div className="min-h-screen scroll-smooth overflow-x-clip mx-auto">
       <Header />
-      <Outlet />
+      <div className="w-full px-6">
+        <div className="mx-auto max-w-7xl min-h-screen">
+          <Outlet />
+        </div>
+      </div>
     </div>
   );
 };

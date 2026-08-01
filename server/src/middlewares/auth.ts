@@ -9,12 +9,7 @@ export const authMiddleware = async (
   next: NextFunction,
 ) => {
   try {
-    console.log("Auth raw cookie header:", req.headers.cookie);
-    console.log("Auth raw cookies:", req.cookies);
     const token = req.cookies?.session;
-    console.log(req);
-
-    console.log("Auth middleware token:", token);
 
     if (!token) {
       return res.status(401).json({ error: "Authentication required" });
@@ -22,7 +17,6 @@ export const authMiddleware = async (
 
     const decoded = Jwt.verify(token, env.JWT_SECRET!) as JwtPayload;
 
-    console.log("Decoded USER token:", decoded);
     if (!decoded || typeof decoded !== "object") {
       return res.status(401).json({ error: "Invalid token" });
     }

@@ -24,7 +24,6 @@ router.get("/commits/:repo_name", authMiddleware, async (req : AuthRequest, res 
         }
         res.status(200).json(commits)
     } catch (error) {
-        console.log(error)
         return res.status(500).json({message: "Internal Server Error"})
     }
 });
@@ -44,7 +43,6 @@ router.get("/last-commit/:repo_name", authMiddleware, async (req : AuthRequest, 
         }
         res.status(200).json(commits)
     } catch (error) {
-        console.log(error)
         return res.status(500).json({message: "Internal Server Error"})
     }
 });

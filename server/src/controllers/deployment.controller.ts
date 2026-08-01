@@ -2,7 +2,7 @@ import { readFileSync } from "fs";
 import { Client } from "ssh2";
 import { Response } from "express";
 import { deploySchema } from "../types/index";
-import { AuthRequest, SyncEnvSchema } from "../types";
+import { AuthRequest, RedeploySchema, SyncEnvSchema } from "../types";
 import { buildDeployCommand } from "../utils/generateCommand";
 import { getLastCommit, incrementVersion } from "../utils/getUser";
 
@@ -161,6 +161,14 @@ export const deployProject = async (req: AuthRequest, res: Response) => {
         stream.on("close", async (code: number, signal: string) => {
           res.write(`Command finished (exit=${code}, signal=${signal})\n`);
 
+          // Only persist project data when the deployment actually succeeded
+          if (code !== 0) {
+            res.write(`\nDEPLOY_STATUS:FAILED\n`);
+            conn.end();
+            res.end();
+            return;
+          }
+
           try {
             const {
               name,
@@ -184,7 +192,7 @@ export const deployProject = async (req: AuthRequest, res: Response) => {
               typescript,
               is_deployed: true,
               environments: data.environments,
-              status: code === 0 ? "active" : "failed",
+              status: "active",
               username: user?.username,
               production_url:
                 type === "express" || type === "nest"
@@ -223,7 +231,7 @@ export const deployProject = async (req: AuthRequest, res: Response) => {
             await Deployment.create({
               project_name: data.name,
               version: version,
-              status: code === 0 ? "success" : "failed",
+              status: "success",
               last_commit: lastCommit,
             });
             res.write(`\nDEPLOY_STATUS:SUCCESS\n`);
@@ -288,7 +296,7 @@ export const getDeployments = async (
     });
   } catch (error) {
     res.status(500).json({
-      error: "Failed to fetch deployments",
+      error: "Failed to stop project",
       details: error instanceof Error ? error.message : "Unknown error",
     });
   }
@@ -361,6 +369,49 @@ export const reDeployProject = async (
       return;
     }
 
+    const parse = RedeploySchema.safeParse(req.body ?? {});
+    if (!parse.success) {
+      res.status(400).json({ errors: parse.error.flatten() });
+      return;
+    }
+    const data = parse.data;
+
+    // Merge editable fields with the current project values
+    const branch = data.branch ?? project.branch ?? "main";
+    const packageManager =
+      data.package_manager ?? project.package_manager ?? "npm";
+    const mainDir = data.main_dir ?? project.main_dir ?? ".";
+    const runScript = data.run_script ?? project.run_script ?? "npm run start";
+    const buildScript =
+      data.build_script ?? project.build_script ?? "npm run build";
+    const typescript = data.typescript ?? project.typescript ?? false;
+    const environments = data.environments ?? project.environments ?? [];
+
+    const envString = environments
+      .map((env) => `${env.key}=${env.value}`)
+      .join("\n");
+    const envB64 = Buffer.from(envString).toString("base64");
+
+    const shq = (value: string) =>
+      `'${value.replace(/'/g, `'\\''`)}'`;
+
+    const projectName = project.name.toLowerCase().trim();
+
+    const command = [
+      `bash ${SCRIPTS_PATH}/redeploy.sh`,
+      `--project ${shq(projectName)}`,
+      `--type ${shq(project.type)}`,
+      `--branch ${shq(branch)}`,
+      `--package_manager ${shq(packageManager)}`,
+      `--sub_dir ${shq(mainDir)}`,
+      `--run_script ${shq(runScript)}`,
+      `--build_script ${shq(buildScript)}`,
+      `--typescript ${shq(String(typescript))}`,
+      `--port ${shq(String(project.port ?? ""))}`,
+      `--env ${shq(envB64)}`,
+      `--domain ${shq(DOMAIN || "stacktest.space")}`,
+    ].join(" ");
+
     // Set up streaming response
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
     res.setHeader("Transfer-Encoding", "chunked");
@@ -368,62 +419,102 @@ export const reDeployProject = async (
     res.setHeader("Cache-Control", "no-cache");
     res.flushHeaders();
 
-    // Build redeploy command
-    const projectDir = `/var/www/${project.name.toLowerCase()}`;
-    const mainDir = project.main_dir || "./";
-
-    // Determine package manager
-    const pkgManager = project.package_manager?.toLowerCase() || "npm";
-    const installCmd =
-      pkgManager === "yarn"
-        ? "yarn install"
-        : pkgManager === "pnpm"
-          ? "pnpm install"
-          : "npm install";
-    const buildCmd = project.build_script || "npm run build";
-
-    // Redeploy script
-    const redeployCommands = [
-      `cd ${projectDir}`,
-      `git fetch origin ${project.branch || "main"}`,
-      `git reset --hard origin/${project.branch || "main"}`,
-      installCmd,
-      buildCmd,
-      `pm2 restart api.${project.name.toLowerCase()} || pm2 start ${pkgManager} --name "api.${project.name.toLowerCase()}" -- "${project.run_script}"`,
-    ].join(" && ");
-
     res.write("Starting redeploy...\n");
 
-    const result = await executeSSHCommand(redeployCommands);
+    const conn = new Client();
+    conn
+      .on("ready", () => {
+        conn.exec(command, (err, stream) => {
+          if (err) {
+            res.write("ERR: " + err.message + "\n");
+            res.write("DEPLOY_STATUS:FAILED\n");
+            res.end();
+            conn.end();
+            return;
+          }
+          stream
+            .on("data", (chunk: Buffer) => {
+              res.write(chunk.toString());
+            })
+            .stderr.on("data", (chunk: Buffer) => {
+              res.write(`ERR: ${chunk.toString()}`);
+            });
 
-    res.write(result.output);
-    if (result.error) {
-      res.write(`\nErrors: ${result.error}\n`);
-    }
+          stream.on("close", async (code: number, signal: string) => {
+            res.write(`\nCommand finished (exit=${code}, signal=${signal})\n`);
 
-    // Update version
-    const version = incrementVersion(project.version || "1.0.0", "patch", true);
-    await Project.updateOne(
-      { _id: project_id },
-      { version, status: "active", updatedAt: new Date() },
-    );
+            // Only persist project/deployment data when the redeploy succeeded
+            if (code !== 0) {
+              res.write(`\nDEPLOY_STATUS:FAILED\n`);
+              conn.end();
+              res.end();
+              return;
+            }
 
-    // Create deployment record
-    const lastCommit = token
-      ? await getLastCommit(token, project.name, user.username).catch(
-          () => null,
-        )
-      : null;
-    const deployment = await Deployment.create({
-      project_name: project.name,
-      version,
-      status: result.code === 0 ? "success" : "failed",
-      last_commit: lastCommit,
-    });
+            try {
+              const version = incrementVersion(
+                project.version || "1.0.0",
+                "patch",
+                true,
+              );
 
-    res.write(`\nDEPLOY_STATUS:${result.code === 0 ? "SUCCESS" : "FAILED"}\n`);
-    res.write(`VERSION:${version}\n`);
-    res.end();
+              await Project.updateOne(
+                { _id: project_id },
+                {
+                  branch,
+                  package_manager: packageManager,
+                  main_dir: mainDir,
+                  run_script: runScript,
+                  build_script: buildScript,
+                  typescript,
+                  environments,
+                  port: project.port,
+                  version,
+                  status: "active",
+                },
+              );
+
+              const lastCommit = token
+                ? await getLastCommit(
+                    token,
+                    project.name,
+                    user.username,
+                  ).catch(() => null)
+                : null;
+
+              await Deployment.create({
+                project_name: project.name,
+                version,
+                status: "success",
+                last_commit: lastCommit,
+              });
+
+              res.write(`\nDEPLOY_STATUS:SUCCESS\n`);
+              res.write(`PROJECT_ID:${project_id}\n`);
+              res.write(`VERSION:${version}\n`);
+            } catch (dbErr) {
+              console.error("DB save error:", dbErr);
+              res.write("\nERR: Failed to save deployment to database\n");
+              res.write("DEPLOY_STATUS:DB_ERROR\n");
+            }
+
+            conn.end();
+            res.end();
+          });
+        });
+      })
+      .on("error", (err) => {
+        res.write("SSH error: " + err.message + "\n");
+        res.write("DEPLOY_STATUS:SSH_ERROR\n");
+        res.end();
+      })
+      .connect({
+        host: HOST,
+        username: USERNAME,
+        port: Number(SSH_PORT),
+        privateKey: SSH_KEY_CONTENT,
+        tryKeyboard: false,
+      });
   } catch (error) {
     console.error("Redeploy error:", error);
     res.status(500).json({
@@ -681,7 +772,7 @@ export const stopProject = async (
       });
   } catch (error) {
     res.status(500).json({
-      error: "Failed to start project",
+      error: "Failed to fetch deployments",
       details: error instanceof Error ? error.message : "Unknown error",
     });
   }

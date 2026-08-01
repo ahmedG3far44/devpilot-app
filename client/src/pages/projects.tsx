@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Seo from "@/components/Seo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
@@ -192,6 +193,12 @@ const ProjectsPage: React.FC<ProjectsPageProps> = ({ onActionClick }) => {
 
   return (
     <div className="container mx-auto my-20 space-y-6">
+      <Seo
+        title="Deployed Projects"
+        description="Manage and monitor your deployed projects on DevPilot."
+        canonicalPath="/projects"
+        noindex
+      />
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">

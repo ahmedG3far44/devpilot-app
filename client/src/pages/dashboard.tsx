@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Users, Rocket, Activity, Search, Filter, UserCheck, UserX, Mail, FolderGit2, Settings, Bell, Lock, Palette, Globe, LucideHome, LucideLogOut } from 'lucide-react';
+import Seo from '@/components/Seo';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -517,6 +518,12 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen ">
+      <Seo
+        title="Admin Dashboard"
+        description="DevPilot administration dashboard."
+        canonicalPath="/dashboard"
+        noindex
+      />
       {/* Sidebar */}
       <div className="lg:fixed lg:block lg:left-0 lg:top-0 lg:h-full lg:w-64 lg:border-r lg:p-6 lg:z-50 hidden">
         <div className="mb-8">

@@ -21,6 +21,18 @@ export const SyncEnvSchema = z.object({
     environments: z.array(DeployEnvironmentSchema),
 });
 
+export const RedeploySchema = z.object({
+    branch: z.string().trim().optional(),
+    package_manager: z.enum(
+        ['n/a', 'npm', 'pnpm', 'yarn']
+    ).optional(),
+    main_dir: z.string().trim().optional(),
+    run_script: z.string().trim().optional(),
+    build_script: z.string().trim().optional(),
+    typescript: z.boolean().optional(),
+    environments: z.array(DeployEnvironmentSchema).optional(),
+});
+
 export const ProjectStatus = z.enum(['active', 'failed', 'pending']);
 
 export const deploySchema = z.object({

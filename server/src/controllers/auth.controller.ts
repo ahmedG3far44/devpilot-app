@@ -11,7 +11,6 @@ dotenv.config();
 export const githubCallback = async (req: Request, res: Response) => {
   try {
     const code = req.query.code as string;
-    console.log("hitting github callback....");
 
     if (!code) {
       return res.status(400).json({ error: "Missing GitHub code" });
@@ -33,14 +32,9 @@ export const githubCallback = async (req: Request, res: Response) => {
       },
     );
 
-    // console.log("token response", tokenResponse)
-
     const tokenData = await tokenResponse.json();
-    console.log("token data", tokenData);
 
     const access_token = tokenData.access_token;
-
-    // console.log("github token data", tokenData)
 
     if (!access_token) {
       return res.status(400).json({
@@ -60,8 +54,6 @@ export const githubCallback = async (req: Request, res: Response) => {
 
     const { id, name, login, avatar_url, repos_url, location, bio, email } =
       githubUser;
-
-    console.log("github user data", githubUser);
 
     if (!user) {
       await User.create({
@@ -90,9 +82,6 @@ export const githubCallback = async (req: Request, res: Response) => {
       { expiresIn: "7d" },
     );
 
-    console.log("jwt token", jwtToken);
-
-
     const cookieOptions: CookieOptions = {
       httpOnly: true,
       secure: true,
@@ -111,7 +100,7 @@ export const githubCallback = async (req: Request, res: Response) => {
     console.error("GitHub auth error:", (error as Error).message);
     res
       .status(500)
-      .json({ error: "Internal Server Error" + (error as Error).message });
+      .json({ error: "GitHub authentication failed. Please try again" });
   }
 };
 

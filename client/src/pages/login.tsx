@@ -2,6 +2,7 @@ import LoginButton from "@/components/LoginButton";
 import { useAuth } from "@/context/auth/AuthContext";
 import { Github } from "lucide-react";
 import { Navigate } from "react-router-dom";
+import Seo from "@/components/Seo";
 
 
 const Login = () => {
@@ -15,6 +16,12 @@ const Login = () => {
   }
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Seo
+        title="Sign in"
+        description="Sign in to DevPilot with your GitHub account to deploy and monitor your applications."
+        canonicalPath="/login"
+        noindex
+      />
       <div className="w-full max-w-md">
         <div className="bg-card border rounded-lg shadow-lg p-8">
           {/* Logo and Brand */}

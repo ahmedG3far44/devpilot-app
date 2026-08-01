@@ -92,15 +92,22 @@ const DeployProvider: FC<PropsWithChildren> = ({ children }) => {
       }
 
       const report = tryParseReport(fullText);
+      const deployFailed =
+        fullText.includes("DEPLOY_STATUS:FAILED") ||
+        fullText.includes("DEPLOY_STATUS:SSH_ERROR") ||
+        fullText.includes("DEPLOY_STATUS:DB_ERROR");
+      const deploySucceeded = fullText.includes("DEPLOY_STATUS:SUCCESS");
+
       if (report) {
         if (projectId) {
           report.projectId = projectId;
         }
         setDeploymentResult(report);
-      } else if (projectId) {
-        // No JSON report from script, but we got PROJECT_ID from backend
+      } else if (deploySucceeded && !deployFailed && projectId) {
+        // No JSON report from script, but the server explicitly confirmed success
         const prefix =
-          deployedProjectData.type === "express" || deployedProjectData.type === "nest"
+          deployedProjectData.type === "express" ||
+          deployedProjectData.type === "nest"
             ? "api."
             : "";
         setDeploymentResult({
@@ -110,10 +117,12 @@ const DeployProvider: FC<PropsWithChildren> = ({ children }) => {
             ? `https://${prefix}${deployedProjectData.name.toLowerCase().trim()}.stacktest.space`
             : undefined,
         });
-      } else if (fullText.includes("DEPLOY_STATUS:FAILED") || fullText.includes("DEPLOY_STATUS:SSH_ERROR") || fullText.includes("DEPLOY_STATUS:DB_ERROR")) {
+      } else {
         setDeploymentResult({
           status: "error",
-          message: "Deployment failed. Check the logs above for details.",
+          message: deployFailed
+            ? "Deployment failed. Check the logs above for details."
+            : "Deployment ended without success confirmation. Check the logs above.",
         });
       }
     } catch (err: any) {

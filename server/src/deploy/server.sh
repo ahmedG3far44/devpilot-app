@@ -55,8 +55,16 @@ output_json() {
     echo -e "\n------------------------------------------"
     echo -e "📊 SERVER DEPLOYMENT REPORT"
     echo -e "------------------------------------------"
-    printf '{\n  "project": "%s",\n  "status": "%s",\n  "url": "https://%s",\n  "port": "%s",\n  "pm2_name": "%s",\n  "status_code": %s,\n  "error_step": "%s",\n  "message": "%s"\n}\n' \
-        "${PROJECT_NAME:-}" "$status" "${FULL_DOMAIN:-}" "${PORT:-}" "${PM2_NAME:-}" "$http_code" "$CURRENT_STEP" "$message"
+    jq -n \
+        --arg project "${PROJECT_NAME:-}" \
+        --arg status "$status" \
+        --arg url "https://${FULL_DOMAIN:-}" \
+        --arg port "${PORT:-}" \
+        --arg pm2_name "${PM2_NAME:-}" \
+        --argjson status_code "$http_code" \
+        --arg error_step "$CURRENT_STEP" \
+        --arg message "$message" \
+        '{project: $project, status: $status, url: $url, port: $port, pm2_name: $pm2_name, status_code: $status_code, error_step: $error_step, message: $message}'
     exit $([ "$status" == "success" ] && echo 0 || echo 1)
 }
 

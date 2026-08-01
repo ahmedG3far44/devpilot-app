@@ -7,15 +7,15 @@ const Footer: React.FC = () => {
   return (
     <footer className="border-t border-border pt-20 pb-10 px-6 bg-card">
       <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
-          <div className="flex items-start justify-start flex-col col-span-1 md:col-span-2">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-12 mb-16">
+          <div className="flex items-start justify-start flex-col col-span-1 md:col-span-2 gap-2">
             <Logo />
 
-            <p className="text-muted-foreground max-w-sm mb-8">
+            <p className="text-muted-foreground max-w-sm mb-2">
               The professional cloud platform for high-performance engineering
               teams.
             </p>
-            <div className="flex gap-4">
+            <div className="flex gap-2">
               <Link
                 target="_blank"
                 to="https://twitter.com/ahmedg3far44"
@@ -84,7 +84,6 @@ const Footer: React.FC = () => {
             </ul>
           </div>
         </div>
-
         <div className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-muted-foreground text-sm">
             © {new Date().getFullYear()} DevPilot. All rights reserved.

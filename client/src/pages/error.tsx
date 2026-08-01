@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Home } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import Seo from '@/components/Seo';
 
 const NotFoundPage: React.FC = () => {
   const navigate = useNavigate();
@@ -15,6 +16,11 @@ const NotFoundPage: React.FC = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+      <Seo
+        title="Page Not Found"
+        description="The page you are looking for does not exist or has been moved."
+        noindex
+      />
       <Card className="max-w-2xl w-full">
         <CardContent className="p-8 md:p-12 text-center">
           {/* Icon */}

@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { DEPLOYMENT_STEPS } from '../src/lib/utils';
+import { useState, useEffect } from "react";
+import { DEPLOYMENT_STEPS } from "../lib/utils";
 
-import type { DeploymentStep } from '../src/types/index';
+import type { DeploymentStep } from "../types/index";
 
 export const useDeploymentAnimation = () => {
   const [terminalLines, setTerminalLines] = useState<DeploymentStep[]>([]);
@@ -12,7 +12,7 @@ export const useDeploymentAnimation = () => {
     if (!step) return;
 
     const timer = setTimeout(() => {
-      if (step.type === 'reset') {
+      if (step.type === "reset") {
         setTerminalLines([]);
         setCurrentStep(0);
       } else {

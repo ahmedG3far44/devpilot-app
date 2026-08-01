@@ -5,7 +5,8 @@ import env from "./config/env";
 import cookieParser from "cookie-parser";
 import indexRouter from "./routes/index.route";
 
-import { errorHandler } from "./middlewares/errorHandler";
+import { errorHandler, notFoundHandler } from "./middlewares/errorHandler";
+import { requestLogger } from "./middlewares/requestLogger";
 import { connectDatabase } from "./config/db";
 
 dotenv.config();
@@ -31,6 +32,8 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
+app.use(requestLogger);
+
 app.get("/", (req, res) => {
   res.status(200).send(
     `
@@ -44,6 +47,8 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api", indexRouter);
+
+app.use(notFoundHandler);
 
 app.use(errorHandler);
 
