@@ -39,7 +39,7 @@ app.get("/", (req, res) => {
     `
     <h1>DevPilot API</h1>
     <h2>Timestamp: ${new Date().toISOString()}</h2>
-    <p>Welcome to the DevPilot API. Please refer to the documentation for available endpoints.</p>
+    <p>Welcome to the DevPilot API.</p>
     <p>Client: ${env.CLIENT_URL}</p>
     <p>Environment: ${env.NODE_ENV}</p>
   `,
