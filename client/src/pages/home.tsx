@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 
 import Hero from "@/components/Hero";
 import Footer from "@/components/Footer";
-import Header from "../components/Header";
+import Header from "@/components/Header";
 import FeatureGrid from "@/components/FeaturesGrid";
 import DeploymentDemo from "@/components/DeploymentDemo";
 import Seo from "@/components/Seo";
