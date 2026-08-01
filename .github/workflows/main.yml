@@ -51,6 +51,7 @@ jobs:
             ####################################################
             # Client Deployment
             ####################################################
+            
             CLIENT_ENV=$(cat <<'EOF'
             VITE_AUTH_GITHUB_CLIENT_ID=${{ secrets.AUTH_GITHUB_CLIENT_ID }}
             VITE_BASE_URL=${{ secrets.VITE_BASE_URL }}
@@ -62,7 +63,15 @@ jobs:
             cd "$APP_DIR"
 
             git fetch origin
+
+            git checkout main
+
             git reset --hard origin/main
+
+            git clean -fd
+
+            echo "Current commit:"
+            git log -1 --oneline
 
             cd client
 
@@ -71,7 +80,7 @@ jobs:
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 
-            npm install
+            npm ci
             npm run build
 
             echo "Reloading Nginx..."
