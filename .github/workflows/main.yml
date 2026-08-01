@@ -10,42 +10,73 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Execute remote deployment script via SSH
+      - name: Deploy Server & Client
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            ENV_CONTENT=$(cat <<'EOF'
-
+            ####################################################
+            # Server Deployment
+            ####################################################
+            SERVER_ENV=$(cat <<'EOF'
             PORT=${{ secrets.PORT }}
             NODE_ENV=${{ secrets.NODE_ENV }}
             DATABASE_URL=${{ secrets.DATABASE_URL }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}
-            EC2_HOST_IP=${{secrets.EC2_HOST_IP}}
-            EC2_USER=${{secrets.EC2_USER}}
-            EC2_SSH_PORT=${{secrets.EC2_SSH_PORT}}
-            EC2_SSH_KEY=${{secrets.EC2_SSH_KEY}}
-            DOMAIN=${{secrets.DOMAIN}}
-            CF_ZONE_ID=${{secrets.CF_ZONE_ID}}
-            CF_API_TOKEN=${{secrets.CF_API_TOKEN}}
-            EMAIL=${{secrets.EMAIL}}
-            DEPLOY_SCRIPT_PATH=${{secrets.DEPLOY_SCRIPT_PATH}}
-            AUTH_GITHUB_CLIENT_ID=${{secrets.AUTH_GITHUB_CLIENT_ID}}
-            AUTH_GITHUB_CLIENT_SECRET=${{secrets.AUTH_GITHUB_CLIENT_SECRET}}
+            EC2_HOST_IP=${{ secrets.EC2_HOST_IP }}
+            EC2_USER=${{ secrets.EC2_USER }}
+            EC2_SSH_PORT=${{ secrets.EC2_SSH_PORT }}
+            EC2_SSH_KEY=${{ secrets.EC2_SSH_KEY }}
+            DOMAIN=${{ secrets.DOMAIN }}
+            CF_ZONE_ID=${{ secrets.CF_ZONE_ID }}
+            CF_API_TOKEN=${{ secrets.CF_API_TOKEN }}
+            EMAIL=${{ secrets.EMAIL }}
+            DEPLOY_SCRIPT_PATH=${{ secrets.DEPLOY_SCRIPT_PATH }}
+            AUTH_GITHUB_CLIENT_ID=${{ secrets.AUTH_GITHUB_CLIENT_ID }}
+            AUTH_GITHUB_CLIENT_SECRET=${{ secrets.AUTH_GITHUB_CLIENT_SECRET }}
             CLIENT_URL=${{ secrets.CLIENT_URL }}
-
             EOF
             )
 
             /home/njerka/apps/deploy.sh \
               --port 5009 \
-              --subdomain devpilot \
+              --subdomain api.devpilot \
               --domain njerka.xyz \
               --git https://github.com/ahmedG3far44/devpilot-app.git \
               --dir "./server" \
-              --env "$ENV_CONTENT"
+              --env "$SERVER_ENV"
+
+            ####################################################
+            # Client Deployment
+            ####################################################
+            CLIENT_ENV=$(cat <<'EOF'
+            VITE_AUTH_GITHUB_CLIENT_ID=${{ secrets.AUTH_GITHUB_CLIENT_ID }}
+            VITE_BASE_URL=${{ secrets.VITE_BASE_URL }}
+            EOF
+            )
+
+            APP_DIR="/home/njerka/apps/devpilot-app"
+
+            cd "$APP_DIR"
+
+            git fetch origin
+            git reset --hard origin/main
+
+            cd client
+
+            printf "%s\n" "$CLIENT_ENV" > .env
+
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+
+            npm install
+            npm run build
+
+            echo "Reloading Nginx..."
+
+            sudo nginx -t
+            sudo systemctl reload nginx
+
+            echo "✅ Client deployment completed."

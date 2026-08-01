@@ -258,9 +258,7 @@ echo "Testing nginx..."
 
 sudo nginx -t
 
-echo "Reloading nginx..."
 
-sudo systemctl reload nginx
 
 ############################################################
 # Done
