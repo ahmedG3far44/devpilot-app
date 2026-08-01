@@ -20,9 +20,11 @@ const LogoutButton = ({ className }: LogoutButtonProps) => {
   };
   return (
     <Button
+      variant="outline"
       disabled={loading}
       onClick={handleLogout}
-      className={cn(className, "cursor-pointer hover:opacity-70 duration-300")}    >
+      className={cn(className, "cursor-pointer hover:opacity-70 duration-300")}
+    >
       <span>
         <LucideLogOut size={15} />{" "}
       </span>

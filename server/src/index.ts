@@ -32,15 +32,15 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 app.get("/", (req, res) => {
-  res.status(200).json({
-    status: "ok",
-    timestamp: new Date().toISOString(),
-    name: "DevPilot API",
-    message:
-      "Welcome to the DevPilot API. Please refer to the documentation for available endpoints.",
-    availableEndpoints: "success",
-    client: env.CLIENT_URL,
-  });
+  res.status(200).send(
+    `
+    <h1>DevPilot API</h1>
+    <h2>Timestamp: ${new Date().toISOString()}</h2>
+    <p>Welcome to the DevPilot API. Please refer to the documentation for available endpoints.</p>
+    <p>Client: ${env.CLIENT_URL}</p>
+    <p>Environment: ${env.NODE_ENV}</p>
+  `,
+  );
 });
 
 app.use("/api", indexRouter);
