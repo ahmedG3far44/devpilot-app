@@ -275,6 +275,10 @@ server {
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host \$host;
         proxy_cache_bypass \$http_upgrade;
+        proxy_buffering off;
+        proxy_read_timeout 600;
+        proxy_send_timeout 600;
+        gzip off;
     }
 }
 EOF

@@ -135,6 +135,8 @@ export const deployProject = async (req: AuthRequest, res: Response) => {
 
   res.setHeader("Content-Type", "text/plain; charset=utf-8");
   res.setHeader("Transfer-Encoding", "chunked");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.setHeader("Cache-Control", "no-cache");
   res.flushHeaders();
   const conn = new Client();
   conn
@@ -362,6 +364,8 @@ export const reDeployProject = async (
     // Set up streaming response
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
     res.setHeader("Transfer-Encoding", "chunked");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.setHeader("Cache-Control", "no-cache");
     res.flushHeaders();
 
     // Build redeploy command

@@ -211,7 +211,7 @@ pm2 save
 # Nginx
 ############################################################
 
-NGINX_FILE="/etc/nginx/sites-available/${SERVER_NAME}.conf"
+NGINX_FILE="/etc/nginx/sites-available/${SERVER_NAME}"
 
 if [[ ! -f "$NGINX_FILE" ]]; then
 
@@ -239,6 +239,14 @@ server {
 
         proxy_set_header X-Forwarded-Proto \$scheme;
 
+        proxy_buffering off;
+
+        proxy_read_timeout 600;
+
+        proxy_send_timeout 600;
+
+        gzip off;
+
     }
 
 }
@@ -246,7 +254,7 @@ EOF
 
 sudo ln -sf \
 "$NGINX_FILE" \
-"/etc/nginx/sites-enabled/${SERVER_NAME}.conf"
+"/etc/nginx/sites-enabled/${SERVER_NAME}"
 
 fi
 
