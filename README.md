@@ -1,4 +1,4 @@
-# DevPilot :
+# DevPilot Auto Deployment Platform :
 
 <p align="center">
   DevPilot is an open-source, self-hosted PaaS (Platform as a Service) that gives developers a Vercel-like deployment experience on their own infrastructure. Connect your GitHub, select a repository, and let devPilot handle the heavy lifting—from cloning and building to SSL termination and DNS records.
